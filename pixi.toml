@@ -1,0 +1,34 @@
+[project]
+authors = ["Peter A. <ink.splatters@pm.me>"]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "whisper-vits-svc"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+fsspec = ">=2024.12.0"
+pyworld = ">=0.3.4"
+matplotlib = ">=3.10.0"
+scikit-learn = ">=1.6.1"
+scipy = ">=1.15.1"
+tensorboard = ">=2.18.0"
+transformers = ">=4.48.0"
+tqdm = ">=4.67.1"
+librosa = ">=0.10.2.post1"
+omegaconf = ">=2.3.0"
+gradio = ">=5.10.0"
+"ruamel.yaml" = ">=0.18.10"
+resampy = ">=0.4.3"
+numpy = ">=1.26.4"
+chardet = ">=5.2.0"
+faiss-cpu = ">=1.9.0"
+
+[pypi-dependencies]
+soundfile = "*"
+torch = { version = "*", index = "https://download.pytorch.org/whl/nightly/cpu" }
+torchaudio = { version = "*", index = "https://download.pytorch.org/whl/nightly/cpu" }
+
+
