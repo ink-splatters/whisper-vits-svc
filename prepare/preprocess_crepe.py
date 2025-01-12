@@ -1,11 +1,15 @@
-import sys,os
+import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import numpy as np
-import librosa
-import torch
-import crepe
 import argparse
+
+import librosa
+import numpy as np
+import torch
 from tqdm import tqdm
+
+import crepe
 
 
 def compute_f0(filename, save, device):
@@ -64,6 +68,10 @@ if __name__ == "__main__":
             os.makedirs(f"./{pitPath}/{spks}", exist_ok=True)
 
             files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
-            for file in tqdm(files, desc=f'Processing crepe {spks}'):
+            for file in tqdm(files, desc=f"Processing crepe {spks}"):
                 file = file[:-4]
-                compute_f0(f"{wavPath}/{spks}/{file}.wav", f"{pitPath}/{spks}/{file}.pit", device)
+                compute_f0(
+                    f"{wavPath}/{spks}/{file}.wav",
+                    f"{pitPath}/{spks}/{file}.pit",
+                    device,
+                )

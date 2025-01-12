@@ -1,15 +1,14 @@
-import os
-from functools import lru_cache
+from functools import cache
 from typing import Union
 
 import librosa
 import numpy as np
 import torch
 import torch.nn.functional as F
-
-from .utils import exact_div
-
 from librosa.filters import mel as librosa_mel_fn
+
+from ..utils import leakproofcache
+from .utils import exact_div
 
 # hard-coded audio hyperparameters
 SAMPLE_RATE = 16000
@@ -18,7 +17,9 @@ N_MELS = 80
 HOP_LENGTH = 160
 CHUNK_LENGTH = 30
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE  # 480000: number of samples in a chunk
-N_FRAMES = exact_div(N_SAMPLES, HOP_LENGTH)  # 3000: number of frames in a mel spectrogram input
+N_FRAMES = exact_div(
+    N_SAMPLES, HOP_LENGTH
+)  # 3000: number of frames in a mel spectrogram input
 
 
 def load_audio(file: str, sr: int = SAMPLE_RATE):
@@ -26,13 +27,21 @@ def load_audio(file: str, sr: int = SAMPLE_RATE):
     return x
 
 
-def pad_or_trim(array, length_max: int = N_SAMPLES, length_min: int = N_SAMPLES // 2, *, axis: int = -1):
+def pad_or_trim(
+    array,
+    length_max: int = N_SAMPLES,
+    length_min: int = N_SAMPLES // 2,
+    *,
+    axis: int = -1,
+):
     """
     Pad or trim the audio array to N_SAMPLES, as expected by the encoder.
     """
     if torch.is_tensor(array):
         if array.shape[axis] > length_max:
-            array = array.index_select(dim=axis, index=torch.arange(length_max, device=array.device))
+            array = array.index_select(
+                dim=axis, index=torch.arange(length_max, device=array.device)
+            )
 
         if array.shape[axis] < length_min:
             pad_widths = [(0, 0)] * array.ndim
@@ -50,7 +59,7 @@ def pad_or_trim(array, length_max: int = N_SAMPLES, length_min: int = N_SAMPLES 
     return array
 
 
-@lru_cache(maxsize=None)
+@leakproofcache(cache)
 def mel_filters(device, n_mels: int = N_MELS) -> torch.Tensor:
     """
     load the mel filterbank matrix for projecting STFT into a Mel spectrogram.
@@ -62,10 +71,14 @@ def mel_filters(device, n_mels: int = N_MELS) -> torch.Tensor:
         )
     """
     assert n_mels == 80, f"Unsupported n_mels: {n_mels}"
-    return torch.from_numpy(librosa_mel_fn(sr=SAMPLE_RATE,n_fft=N_FFT,n_mels=n_mels)).to(device)
+    return torch.from_numpy(
+        librosa_mel_fn(sr=SAMPLE_RATE, n_fft=N_FFT, n_mels=n_mels)
+    ).to(device)
 
 
-def log_mel_spectrogram(audio: Union[str, np.ndarray, torch.Tensor], n_mels: int = N_MELS):
+def log_mel_spectrogram(
+    audio: Union[str, np.ndarray, torch.Tensor], n_mels: int = N_MELS
+):
     """
     Compute the log-Mel spectrogram of
 

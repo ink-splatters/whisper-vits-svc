@@ -1,6 +1,6 @@
+
 import torch
 import torchaudio
-import typing as T
 
 
 class MelspecDiscriminator(torch.nn.Module):
@@ -22,23 +22,21 @@ class MelspecDiscriminator(torch.nn.Module):
         # time-frequency 2D convolutions
         kernel_sizes = [(7, 7), (4, 4), (4, 4), (4, 4)]
         strides = [(1, 2), (1, 2), (1, 2), (1, 2)]
-        self._convs = torch.nn.ModuleList(
-            [
-                torch.nn.Sequential(
-                    torch.nn.Conv2d(
-                        in_channels=1 if i == 0 else 32,
-                        out_channels=64,
-                        kernel_size=k,
-                        stride=s,
-                        padding=(1, 2),
-                        bias=False,
-                    ),
-                    torch.nn.BatchNorm2d(num_features=64),
-                    torch.nn.GLU(dim=1),
-                )
-                for i, (k, s) in enumerate(zip(kernel_sizes, strides))
-            ]
-        )
+        self._convs = torch.nn.ModuleList([
+            torch.nn.Sequential(
+                torch.nn.Conv2d(
+                    in_channels=1 if i == 0 else 32,
+                    out_channels=64,
+                    kernel_size=k,
+                    stride=s,
+                    padding=(1, 2),
+                    bias=False,
+                ),
+                torch.nn.BatchNorm2d(num_features=64),
+                torch.nn.GLU(dim=1),
+            )
+            for i, (k, s) in enumerate(zip(kernel_sizes, strides))
+        ])
 
         # output adversarial projection
         self._postnet = torch.nn.Conv2d(
@@ -48,7 +46,7 @@ class MelspecDiscriminator(torch.nn.Module):
             stride=(1, 2),
         )
 
-    def forward(self, x: torch.Tensor) -> T.Tuple[torch.Tensor, T.List[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
         # apply the log-scale mel spectrogram transform
         x = torch.log(self._melspec(x) + 1e-5)
 

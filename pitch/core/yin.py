@@ -4,11 +4,14 @@
 | License: The MIT license, https://opensource.org/licenses/MIT
 | This file is part of libf0.
 """
+
 import numpy as np
 from numba import njit
 
 
-def yin(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, threshold=0.15, verbose=False):
+def yin(
+    x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, threshold=0.15, verbose=False
+):
     """
     Implementation of the YIN algorithm.
 
@@ -48,13 +51,21 @@ def yin(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, threshold=0.15, ve
     if F_min > F_max:
         raise Exception("F_min must be smaller than F_max!")
 
-    if F_min < Fs/N:        
-        raise Exception(f"The condition (F_min >= Fs/N) was not met. With Fs = {Fs}, N = {N} and F_min = {F_min} you have the following options: \n1) Set F_min >= {np.ceil(Fs/N)} Hz. \n2) Set N >= {np.ceil(Fs/F_min).astype(int)}. \n3) Set Fs <= {np.floor(F_min * N)} Hz.")
+    if F_min < Fs / N:
+        raise Exception(
+            f"The condition (F_min >= Fs/N) was not met. With Fs = {Fs}, N = {N} and F_min = {F_min} you have the following options: \n1) Set F_min >= {np.ceil(Fs / N)} Hz. \n2) Set N >= {np.ceil(Fs / F_min).astype(int)}. \n3) Set Fs <= {np.floor(F_min * N)} Hz."
+        )
 
-    x_pad = np.concatenate((np.zeros(N//2), x, np.zeros(N//2)))  # Add zeros for centered estimates
-    M = int(np.floor((len(x_pad) - N) / H)) + 1  # Compute number of estimates that will be generated
+    x_pad = np.concatenate((
+        np.zeros(N // 2),
+        x,
+        np.zeros(N // 2),
+    ))  # Add zeros for centered estimates
+    M = (
+        int(np.floor((len(x_pad) - N) / H)) + 1
+    )  # Compute number of estimates that will be generated
     f0 = np.zeros(M)  # Estimated fundamental frequencies (0 for unspecified frames)
-    t = np.arange(M)*H/Fs  # Time axis
+    t = np.arange(M) * H / Fs  # Time axis
     ap = np.zeros(M)  # Aperiodicity
 
     lag_min = max(int(np.ceil(Fs / F_max)), 1)  # lag of maximal frequency in samples
@@ -62,26 +73,33 @@ def yin(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, threshold=0.15, ve
 
     for m in range(M):
         if verbose:
-            print(f"YIN Progress: {np.ceil(100*m/M).astype(int)}%", end='\r')
+            print(f"YIN Progress: {np.ceil(100 * m / M).astype(int)}%", end="\r")
         # Take a frame from input signal
-        frame = x_pad[m*H:m*H + N]
+        frame = x_pad[m * H : m * H + N]
 
         # Cumulative Mean Normalized Difference Function
         cmndf = cumulative_mean_normalized_difference_function(frame, lag_max)
 
         # Absolute Thresholding
-        lag_est = absolute_thresholding(cmndf, threshold, lag_min, lag_max, parabolic_interp=True)
+        lag_est = absolute_thresholding(
+            cmndf, threshold, lag_min, lag_max, parabolic_interp=True
+        )
 
         # Refine estimate by constraining search to vicinity of best local estimate (default: +/- 25 cents)
         tol_cents = 25
-        lag_min_local = int(np.round(Fs / ((Fs / lag_est) * 2 ** (tol_cents/1200))))
+        lag_min_local = int(np.round(Fs / ((Fs / lag_est) * 2 ** (tol_cents / 1200))))
         if lag_min_local < lag_min:
             lag_min_local = lag_min
-        lag_max_local = int(np.round(Fs / ((Fs / lag_est) * 2 ** (-tol_cents/1200))))
+        lag_max_local = int(np.round(Fs / ((Fs / lag_est) * 2 ** (-tol_cents / 1200))))
         if lag_max_local > lag_max:
             lag_max_local = lag_max
-        lag_new = absolute_thresholding(cmndf, threshold=np.inf, lag_min=lag_min_local, lag_max=lag_max_local,
-                                        parabolic_interp=True)
+        lag_new = absolute_thresholding(
+            cmndf,
+            threshold=np.inf,
+            lag_min=lag_min_local,
+            lag_max=lag_max_local,
+            parabolic_interp=True,
+        )
 
         # Compute Fundamental Frequency Estimate
         f0[m] = Fs / lag_new
@@ -110,15 +128,15 @@ def cumulative_mean_normalized_difference_function(frame, lag_max):
         Cumulative Mean Normalized Difference Function
     """
 
-    cmndf = np.zeros(lag_max+1)  # Initialize CMNDF
+    cmndf = np.zeros(lag_max + 1)  # Initialize CMNDF
     cmndf[0] = 1
     diff_mean = 0
 
-    for tau in range(1, lag_max+1):
+    for tau in range(1, lag_max + 1):
         # Difference function
-        diff = np.sum((frame[0:-tau] - frame[0 + tau:]) ** 2)
+        diff = np.sum((frame[0:-tau] - frame[0 + tau :]) ** 2)
         # Iterative mean of the difference function
-        diff_mean = diff_mean*(tau-1)/tau + diff/tau
+        diff_mean = diff_mean * (tau - 1) / tau + diff / tau
 
         cmndf[tau] = diff / (diff_mean + np.finfo(np.float64).eps)
 
@@ -154,10 +172,14 @@ def absolute_thresholding(cmndf, threshold, lag_min, lag_max, parabolic_interp=T
         return lag_min
 
     # find local minima below absolute threshold in interval [lag_min:lag_max]
-    local_min_idxs = (np.argwhere((cmndf[1:-1] < cmndf[0:-2]) & (cmndf[1:-1] < cmndf[2:]))).flatten() + 1
+    local_min_idxs = (
+        np.argwhere((cmndf[1:-1] < cmndf[0:-2]) & (cmndf[1:-1] < cmndf[2:]))
+    ).flatten() + 1
     below_thr_idxs = np.argwhere(cmndf[lag_min:lag_max] < threshold).flatten() + lag_min
     # numba compatible intersection of indices sets
-    min_idxs = np.unique(np.array([i for i in local_min_idxs for j in below_thr_idxs if i == j]))
+    min_idxs = np.unique(
+        np.array([i for i in local_min_idxs for j in below_thr_idxs if i == j])
+    )
 
     # if no local minima below threshold are found, return global minimum
     if not min_idxs.size:
@@ -168,7 +190,9 @@ def absolute_thresholding(cmndf, threshold, lag_min, lag_max, parabolic_interp=T
 
     # Optional: Parabolic Interpolation of local minima
     if parabolic_interp:
-        lag_corr, cmndf[lag] = parabolic_interpolation(cmndf[lag-1], cmndf[lag], cmndf[lag+1])
+        lag_corr, cmndf[lag] = parabolic_interpolation(
+            cmndf[lag - 1], cmndf[lag], cmndf[lag + 1]
+        )
         lag += lag_corr
 
     return lag
@@ -195,7 +219,7 @@ def parabolic_interpolation(y1, y2, y3):
     a = np.finfo(np.float64).eps + (y1 + y3 - 2 * y2) / 2
     b = (y3 - y1) / 2
     x_interp = -b / (2 * a)
-    y_interp = y2 - (b ** 2) / (4 * a)
+    y_interp = y2 - (b**2) / (4 * a)
 
     return x_interp, y_interp
 
@@ -225,13 +249,16 @@ def aperiodicity(frame, lag_est):
 
     # Shift frame by estimated period
     if frac == 0:
-        frame_shift = frame_pad[lag_int:lag_int+len(frame)]
+        frame_shift = frame_pad[lag_int : lag_int + len(frame)]
     else:
         # linear interpolation between adjacent shifts
-        frame_shift = (1 - frac) * frame_pad[lag_int:lag_int+len(frame)] + \
-                      frac * frame_pad[lag_int+1:lag_int+1+len(frame)]
+        frame_shift = (1 - frac) * frame_pad[
+            lag_int : lag_int + len(frame)
+        ] + frac * frame_pad[lag_int + 1 : lag_int + 1 + len(frame)]
 
-    pwr = (np.mean(frame ** 2) + np.mean(frame_shift ** 2)) / 2  # average power over fixed and shifted frame
+    pwr = (
+        np.mean(frame**2) + np.mean(frame_shift**2)
+    ) / 2  # average power over fixed and shifted frame
     res = np.mean((frame - frame_shift) ** 2) / 2  # residual power
     ap = res / (pwr + np.finfo(np.float64).eps)
 

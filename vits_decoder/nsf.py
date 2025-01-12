@@ -1,6 +1,7 @@
-import torch
-import numpy as np
 import sys
+
+import numpy as np
+import torch
 import torch.nn.functional as torch_nn_func
 
 
@@ -12,7 +13,7 @@ class PulseGen(torch.nn.Module):
     """
 
     def __init__(self, samp_rate, pulse_amp=0.1, noise_std=0.003, voiced_threshold=0):
-        super(PulseGen, self).__init__()
+        super().__init__()
         self.pulse_amp = pulse_amp
         self.sampling_rate = samp_rate
         self.voiced_threshold = voiced_threshold
@@ -57,9 +58,9 @@ class PulseGen(torch.nn.Module):
             uv_2 = torch.roll(uv, shifts=-1, dims=1)
             uv_2[:, -1, :] = 0
 
-            loc = (pure_sine > sine_1) * (pure_sine > sine_2) \
-                  * (uv_1 > 0) * (uv_2 > 0) * (uv > 0) \
-                  + (uv_1 < 1) * (uv > 0)
+            loc = (pure_sine > sine_1) * (pure_sine > sine_2) * (uv_1 > 0) * (
+                uv_2 > 0
+            ) * (uv > 0) + (uv_1 < 1) * (uv > 0)
 
             # pulse train without noise
             pulse_train = pure_sine * loc
@@ -82,7 +83,7 @@ class SignalsConv1d(torch.nn.Module):
     """
 
     def __init__(self):
-        super(SignalsConv1d, self).__init__()
+        super().__init__()
 
     def forward(self, signal, system_ir):
         """output = forward(signal, system_ir)
@@ -96,8 +97,8 @@ class SignalsConv1d(torch.nn.Module):
             print("Error: SignalsConv1d expects shape:")
             print("signal    (batchsize, length1, dim)")
             print("system_id (batchsize, length2, dim)")
-            print("But received signal: {:s}".format(str(signal.shape)))
-            print(" system_ir: {:s}".format(str(system_ir.shape)))
+            print(f"But received signal: {str(signal.shape):s}")
+            print(f" system_ir: {str(system_ir.shape):s}")
             sys.exit(1)
         padding_length = system_ir.shape[0] - 1
         groups = signal.shape[-1]
@@ -119,7 +120,7 @@ class CyclicNoiseGen_v1(torch.nn.Module):
     """
 
     def __init__(self, samp_rate, noise_std=0.003, voiced_threshold=0):
-        super(CyclicNoiseGen_v1, self).__init__()
+        super().__init__()
         self.samp_rate = samp_rate
         self.noise_std = noise_std
         self.voiced_threshold = voiced_threshold
@@ -205,7 +206,7 @@ class SineGen(torch.nn.Module):
         voiced_threshold=0,
         flag_for_pulse=False,
     ):
-        super(SineGen, self).__init__()
+        super().__init__()
         self.sine_amp = sine_amp
         self.noise_std = noise_std
         self.harmonic_num = harmonic_num
@@ -333,7 +334,7 @@ class SourceModuleCycNoise_v1(torch.nn.Module):
     """
 
     def __init__(self, sampling_rate, noise_std=0.003, voiced_threshod=0):
-        super(SourceModuleCycNoise_v1, self).__init__()
+        super().__init__()
         self.sampling_rate = sampling_rate
         self.noise_std = noise_std
         self.l_cyc_gen = CyclicNoiseGen_v1(sampling_rate, noise_std, voiced_threshod)
@@ -363,7 +364,7 @@ class SourceModuleHnNSF(torch.nn.Module):
         add_noise_std=0.003,
         voiced_threshod=0,
     ):
-        super(SourceModuleHnNSF, self).__init__()
+        super().__init__()
         harmonic_num = 10
         self.sine_amp = sine_amp
         self.noise_std = add_noise_std
@@ -375,10 +376,25 @@ class SourceModuleHnNSF(torch.nn.Module):
 
         # to merge source harmonics into a single excitation
         self.l_tanh = torch.nn.Tanh()
-        self.register_buffer('merge_w', torch.FloatTensor([[
-            0.2942, -0.2243, 0.0033, -0.0056, -0.0020, -0.0046,
-            0.0221, -0.0083, -0.0241, -0.0036, -0.0581]]))
-        self.register_buffer('merge_b', torch.FloatTensor([0.0008]))
+        self.register_buffer(
+            "merge_w",
+            torch.FloatTensor([
+                [
+                    0.2942,
+                    -0.2243,
+                    0.0033,
+                    -0.0056,
+                    -0.0020,
+                    -0.0046,
+                    0.0221,
+                    -0.0083,
+                    -0.0241,
+                    -0.0036,
+                    -0.0581,
+                ]
+            ]),
+        )
+        self.register_buffer("merge_b", torch.FloatTensor([0.0008]))
 
     def forward(self, x):
         """
@@ -388,7 +404,6 @@ class SourceModuleHnNSF(torch.nn.Module):
         """
         # source for harmonic branch
         sine_wavs = self.l_sin_gen(x)
-        sine_wavs = torch_nn_func.linear(
-            sine_wavs, self.merge_w) + self.merge_b
+        sine_wavs = torch_nn_func.linear(sine_wavs, self.merge_w) + self.merge_b
         sine_merge = self.l_tanh(sine_wavs)
         return sine_merge

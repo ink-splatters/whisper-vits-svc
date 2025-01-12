@@ -1,8 +1,3 @@
-from . import decode
+from . import convert, decode, filter, load, loudness, threshold
 from .core import *
 from .model import Crepe
-from . import convert
-from . import filter
-from . import load
-from . import loudness
-from . import threshold

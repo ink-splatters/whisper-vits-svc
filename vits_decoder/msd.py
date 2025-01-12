@@ -6,7 +6,7 @@ from torch.nn.utils import weight_norm
 
 class ScaleDiscriminator(torch.nn.Module):
     def __init__(self):
-        super(ScaleDiscriminator, self).__init__()
+        super().__init__()
         self.convs = nn.ModuleList([
             weight_norm(nn.Conv1d(1, 16, 15, 1, padding=7)),
             weight_norm(nn.Conv1d(16, 64, 41, 4, groups=4, padding=20)),

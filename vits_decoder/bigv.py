@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-
 from torch.nn import Conv1d
-from torch.nn.utils import weight_norm, remove_weight_norm
+from torch.nn.utils import remove_weight_norm, weight_norm
+
 from .alias.act import SnakeAlias
 
 
@@ -13,29 +13,77 @@ def init_weights(m, mean=0.0, std=0.01):
 
 
 def get_padding(kernel_size, dilation=1):
-    return int((kernel_size*dilation - dilation)/2)
+    return int((kernel_size * dilation - dilation) / 2)
 
 
 class AMPBlock(torch.nn.Module):
     def __init__(self, channels, kernel_size=3, dilation=(1, 3, 5)):
-        super(AMPBlock, self).__init__()
+        super().__init__()
         self.convs1 = nn.ModuleList([
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=dilation[0],
-                               padding=get_padding(kernel_size, dilation[0]))),
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=dilation[1],
-                               padding=get_padding(kernel_size, dilation[1]))),
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=dilation[2],
-                               padding=get_padding(kernel_size, dilation[2])))
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=dilation[0],
+                    padding=get_padding(kernel_size, dilation[0]),
+                )
+            ),
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=dilation[1],
+                    padding=get_padding(kernel_size, dilation[1]),
+                )
+            ),
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=dilation[2],
+                    padding=get_padding(kernel_size, dilation[2]),
+                )
+            ),
         ])
         self.convs1.apply(init_weights)
 
         self.convs2 = nn.ModuleList([
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
-                               padding=get_padding(kernel_size, 1))),
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
-                               padding=get_padding(kernel_size, 1))),
-            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
-                               padding=get_padding(kernel_size, 1)))
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=1,
+                    padding=get_padding(kernel_size, 1),
+                )
+            ),
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=1,
+                    padding=get_padding(kernel_size, 1),
+                )
+            ),
+            weight_norm(
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    1,
+                    dilation=1,
+                    padding=get_padding(kernel_size, 1),
+                )
+            ),
         ])
         self.convs2.apply(init_weights)
 

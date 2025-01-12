@@ -1,39 +1,34 @@
-
 import torch
-
 from torch import nn
 from torch.nn import functional as F
-from vits import attentions
-from vits import commons
-from vits import modules
+
+from vits import attentions, commons, modules
+from vits.modules_grl import SpeakerClassifier
 from vits.utils import f0_to_coarse
 from vits_decoder.generator import Generator
-from vits.modules_grl import SpeakerClassifier
 
 
 class TextEncoder(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 vec_channels,
-                 out_channels,
-                 hidden_channels,
-                 filter_channels,
-                 n_heads,
-                 n_layers,
-                 kernel_size,
-                 p_dropout):
+    def __init__(
+        self,
+        in_channels,
+        vec_channels,
+        out_channels,
+        hidden_channels,
+        filter_channels,
+        n_heads,
+        n_layers,
+        kernel_size,
+        p_dropout,
+    ):
         super().__init__()
         self.out_channels = out_channels
         self.pre = nn.Conv1d(in_channels, hidden_channels, kernel_size=5, padding=2)
         self.hub = nn.Conv1d(vec_channels, hidden_channels, kernel_size=5, padding=2)
         self.pit = nn.Embedding(256, hidden_channels)
         self.enc = attentions.Encoder(
-            hidden_channels,
-            filter_channels,
-            n_heads,
-            n_layers,
-            kernel_size,
-            p_dropout)
+            hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout
+        )
         self.proj = nn.Conv1d(hidden_channels, out_channels * 2, 1)
 
     def forward(self, x, x_lengths, v, f0):
@@ -65,7 +60,7 @@ class ResidualCouplingBlock(nn.Module):
     ):
         super().__init__()
         self.flows = nn.ModuleList()
-        for i in range(n_flows):
+        for _i in range(n_flows):
             self.flows.append(
                 modules.ResidualCouplingLayer(
                     channels,
@@ -137,12 +132,7 @@ class PosteriorEncoder(nn.Module):
 
 
 class SynthesizerTrn(nn.Module):
-    def __init__(
-        self,
-        spec_channels,
-        segment_size,
-        hp
-    ):
+    def __init__(self, spec_channels, segment_size, hp):
         super().__init__()
         self.segment_size = segment_size
         self.emb_g = nn.Linear(hp.vits.spk_dim, hp.vits.gin_channels)
@@ -176,7 +166,7 @@ class SynthesizerTrn(nn.Module):
             5,
             1,
             4,
-            gin_channels=hp.vits.spk_dim
+            gin_channels=hp.vits.spk_dim,
         )
         self.dec = Generator(hp=hp)
 
@@ -185,11 +175,13 @@ class SynthesizerTrn(nn.Module):
         vec = vec + torch.randn_like(vec) * 2  # Perturbation
         g = self.emb_g(F.normalize(spk)).unsqueeze(-1)
         z_p, m_p, logs_p, ppg_mask, x = self.enc_p(
-            ppg, ppg_l, vec, f0=f0_to_coarse(pit))
+            ppg, ppg_l, vec, f0=f0_to_coarse(pit)
+        )
         z_q, m_q, logs_q, spec_mask = self.enc_q(spec, spec_l, g=g)
 
         z_slice, pit_slice, ids_slice = commons.rand_slice_segments_with_pitch(
-            z_q, pit, spec_l, self.segment_size)
+            z_q, pit, spec_l, self.segment_size
+        )
         audio = self.dec(spk, z_slice, pit_slice)
 
         # SNAC to flow
@@ -197,24 +189,26 @@ class SynthesizerTrn(nn.Module):
         z_r, logdet_r = self.flow(z_p, spec_mask, g=spk, reverse=True)
         # speaker
         spk_preds = self.speaker_classifier(x)
-        return audio, ids_slice, spec_mask, (z_f, z_r, z_p, m_p, logs_p, z_q, m_q, logs_q, logdet_f, logdet_r), spk_preds
+        return (
+            audio,
+            ids_slice,
+            spec_mask,
+            (z_f, z_r, z_p, m_p, logs_p, z_q, m_q, logs_q, logdet_f, logdet_r),
+            spk_preds,
+        )
 
     def infer(self, ppg, vec, pit, spk, ppg_l):
         ppg = ppg + torch.randn_like(ppg) * 0.0001  # Perturbation
         z_p, m_p, logs_p, ppg_mask, x = self.enc_p(
-            ppg, ppg_l, vec, f0=f0_to_coarse(pit))
+            ppg, ppg_l, vec, f0=f0_to_coarse(pit)
+        )
         z, _ = self.flow(z_p, ppg_mask, g=spk, reverse=True)
         o = self.dec(spk, z * ppg_mask, f0=pit)
         return o
 
 
 class SynthesizerInfer(nn.Module):
-    def __init__(
-        self,
-        spec_channels,
-        segment_size,
-        hp
-    ):
+    def __init__(self, spec_channels, segment_size, hp):
         super().__init__()
         self.segment_size = segment_size
         self.enc_p = TextEncoder(
@@ -234,7 +228,7 @@ class SynthesizerInfer(nn.Module):
             5,
             1,
             4,
-            gin_channels=hp.vits.spk_dim
+            gin_channels=hp.vits.spk_dim,
         )
         self.dec = Generator(hp=hp)
 
@@ -250,7 +244,8 @@ class SynthesizerInfer(nn.Module):
 
     def inference(self, ppg, vec, pit, spk, ppg_l, source):
         z_p, m_p, logs_p, ppg_mask, x = self.enc_p(
-            ppg, ppg_l, vec, f0=f0_to_coarse(pit))
+            ppg, ppg_l, vec, f0=f0_to_coarse(pit)
+        )
         z, _ = self.flow(z_p, ppg_mask, g=spk, reverse=True)
         o = self.dec.inference(spk, z * ppg_mask, source)
         return o

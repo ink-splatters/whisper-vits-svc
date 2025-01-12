@@ -20,7 +20,7 @@ if __name__ == "__main__":
             if file.endswith(".wav"):
                 file = file[:-4]
 
-                if (IndexBySinger == False):
+                if IndexBySinger is False:
                     path_spk = f"./data_svc/speaker/{spks}/{file}.spk.npy"
                 else:
                     path_spk = f"./data_svc/singer/{spks}.spk.npy"
@@ -51,7 +51,8 @@ if __name__ == "__main__":
                     has_error = 1
                 if has_error == 0:
                     all_items.append(
-                        f"{path_wave}|{path_spec}|{path_pitch}|{path_hubert}|{path_whisper}|{path_spk}")
+                        f"{path_wave}|{path_spec}|{path_pitch}|{path_hubert}|{path_whisper}|{path_spk}"
+                    )
 
     random.shuffle(all_items)
     valids = all_items[:10]

@@ -3,7 +3,6 @@ import torch
 
 import crepe
 
-
 ###############################################################################
 # Pitch unit conversions
 ###############################################################################
@@ -40,7 +39,7 @@ def frequency_to_bins(frequency, quantize_fn=torch.floor):
 
 def frequency_to_cents(frequency):
     """Convert frequency in Hz to cents"""
-    return 1200 * torch.log2(frequency / 10.)
+    return 1200 * torch.log2(frequency / 10.0)
 
 
 ###############################################################################
@@ -50,8 +49,10 @@ def frequency_to_cents(frequency):
 
 def dither(cents):
     """Dither the predicted pitch in cents to remove quantization error"""
-    noise = scipy.stats.triang.rvs(c=0.5,
-                                   loc=-crepe.CENTS_PER_BIN,
-                                   scale=2 * crepe.CENTS_PER_BIN,
-                                   size=cents.size())
+    noise = scipy.stats.triang.rvs(
+        c=0.5,
+        loc=-crepe.CENTS_PER_BIN,
+        scale=2 * crepe.CENTS_PER_BIN,
+        size=cents.size(),
+    )
     return cents + cents.new_tensor(noise)

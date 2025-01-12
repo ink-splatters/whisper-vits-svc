@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright 2019 Tomoki Hayashi
 #  MIT License (https://opensource.org/licenses/MIT)
 
@@ -25,7 +23,7 @@ def stft(x, fft_size, hop_size, win_length, window):
     imag = x_stft[..., 1]
 
     # NOTE(kan-bayashi): clamp is needed to avoid nan or inf
-    return torch.sqrt(torch.clamp(real ** 2 + imag ** 2, min=1e-7)).transpose(2, 1)
+    return torch.sqrt(torch.clamp(real**2 + imag**2, min=1e-7)).transpose(2, 1)
 
 
 class SpectralConvergengeLoss(torch.nn.Module):
@@ -33,7 +31,7 @@ class SpectralConvergengeLoss(torch.nn.Module):
 
     def __init__(self):
         """Initilize spectral convergence loss module."""
-        super(SpectralConvergengeLoss, self).__init__()
+        super().__init__()
 
     def forward(self, x_mag, y_mag):
         """Calculate forward propagation.
@@ -51,7 +49,7 @@ class LogSTFTMagnitudeLoss(torch.nn.Module):
 
     def __init__(self):
         """Initilize los STFT magnitude loss module."""
-        super(LogSTFTMagnitudeLoss, self).__init__()
+        super().__init__()
 
     def forward(self, x_mag, y_mag):
         """Calculate forward propagation.
@@ -67,9 +65,16 @@ class LogSTFTMagnitudeLoss(torch.nn.Module):
 class STFTLoss(torch.nn.Module):
     """STFT loss module."""
 
-    def __init__(self, device, fft_size=1024, shift_size=120, win_length=600, window="hann_window"):
+    def __init__(
+        self,
+        device,
+        fft_size=1024,
+        shift_size=120,
+        win_length=600,
+        window="hann_window",
+    ):
         """Initialize STFT loss module."""
-        super(STFTLoss, self).__init__()
+        super().__init__()
         self.fft_size = fft_size
         self.shift_size = shift_size
         self.win_length = win_length
@@ -97,16 +102,13 @@ class STFTLoss(torch.nn.Module):
 class MultiResolutionSTFTLoss(torch.nn.Module):
     """Multi resolution STFT loss module."""
 
-    def __init__(self,
-                 device,
-                 resolutions,
-                 window="hann_window"):
+    def __init__(self, device, resolutions, window="hann_window"):
         """Initialize Multi resolution STFT loss module.
         Args:
             resolutions (list): List of (FFT size, hop size, window length).
             window (str): Window function type.
         """
-        super(MultiResolutionSTFTLoss, self).__init__()
+        super().__init__()
         self.stft_losses = torch.nn.ModuleList()
         for fs, ss, wl in resolutions:
             self.stft_losses += [STFTLoss(device, fs, ss, wl, window)]

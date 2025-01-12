@@ -32,6 +32,9 @@ def train_index(
 
 
 def get_feature_matrix(features_dir_path: Path) -> NumpyArray:
-    matrices = [np.load(str(features_path)) for features_path in features_dir_path.rglob("*.npy")]
+    matrices = [
+        np.load(str(features_path))
+        for features_path in features_dir_path.rglob("*.npy")
+    ]
     feature_matrix = np.concatenate(matrices, axis=0)
     return cast(NumpyArray, feature_matrix)

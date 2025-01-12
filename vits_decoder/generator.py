@@ -1,25 +1,17 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+from torch.nn import Conv1d, ConvTranspose1d
+from torch.nn.utils import remove_weight_norm, weight_norm
 
-from torch.nn import Conv1d
-from torch.nn import ConvTranspose1d
-from torch.nn.utils import weight_norm
-from torch.nn.utils import remove_weight_norm
-
+from .bigv import AMPBlock, SnakeAlias, init_weights
 from .nsf import SourceModuleHnNSF
-from .bigv import init_weights, AMPBlock, SnakeAlias
 
 
 class SpeakerAdapter(nn.Module):
-
-    def __init__(self,
-                 speaker_dim,
-                 adapter_dim,
-                 epsilon=1e-5
-                 ):
-        super(SpeakerAdapter, self).__init__()
+    def __init__(self, speaker_dim, adapter_dim, epsilon=1e-5):
+        super().__init__()
         self.speaker_dim = speaker_dim
         self.adapter_dim = adapter_dim
         self.epsilon = epsilon
@@ -50,38 +42,41 @@ class SpeakerAdapter(nn.Module):
 class Generator(torch.nn.Module):
     # this is our main BigVGAN model. Applies anti-aliased periodic activation for resblocks.
     def __init__(self, hp):
-        super(Generator, self).__init__()
+        super().__init__()
         self.hp = hp
         self.num_kernels = len(hp.gen.resblock_kernel_sizes)
         self.num_upsamples = len(hp.gen.upsample_rates)
         # speaker adaper, 256 should change by what speaker encoder you use
         self.adapter = SpeakerAdapter(hp.vits.spk_dim, hp.gen.upsample_input)
         # pre conv
-        self.conv_pre = Conv1d(hp.gen.upsample_input,
-                               hp.gen.upsample_initial_channel, 7, 1, padding=3)
+        self.conv_pre = Conv1d(
+            hp.gen.upsample_input, hp.gen.upsample_initial_channel, 7, 1, padding=3
+        )
         # nsf
-        self.f0_upsamp = torch.nn.Upsample(
-            scale_factor=np.prod(hp.gen.upsample_rates))
+        self.f0_upsamp = torch.nn.Upsample(scale_factor=np.prod(hp.gen.upsample_rates))
         self.m_source = SourceModuleHnNSF(sampling_rate=hp.data.sampling_rate)
         self.noise_convs = nn.ModuleList()
         # transposed conv-based upsamplers. does not apply anti-aliasing
         self.ups = nn.ModuleList()
-        for i, (u, k) in enumerate(zip(hp.gen.upsample_rates, hp.gen.upsample_kernel_sizes)):
+        for i, (u, k) in enumerate(
+            zip(hp.gen.upsample_rates, hp.gen.upsample_kernel_sizes)
+        ):
             # print(f'ups: {i} {k}, {u}, {(k - u) // 2}')
             # base
             self.ups.append(
                 weight_norm(
                     ConvTranspose1d(
-                        hp.gen.upsample_initial_channel // (2 ** i),
+                        hp.gen.upsample_initial_channel // (2**i),
                         hp.gen.upsample_initial_channel // (2 ** (i + 1)),
                         k,
                         u,
-                        padding=(k - u) // 2)
+                        padding=(k - u) // 2,
+                    )
                 )
             )
             # nsf
             if i + 1 < len(hp.gen.upsample_rates):
-                stride_f0 = np.prod(hp.gen.upsample_rates[i + 1:])
+                stride_f0 = np.prod(hp.gen.upsample_rates[i + 1 :])
                 stride_f0 = int(stride_f0)
                 self.noise_convs.append(
                     Conv1d(
@@ -94,15 +89,20 @@ class Generator(torch.nn.Module):
                 )
             else:
                 self.noise_convs.append(
-                    Conv1d(1, hp.gen.upsample_initial_channel //
-                           (2 ** (i + 1)), kernel_size=1)
+                    Conv1d(
+                        1,
+                        hp.gen.upsample_initial_channel // (2 ** (i + 1)),
+                        kernel_size=1,
+                    )
                 )
 
         # residual blocks using anti-aliased multi-periodicity composition modules (AMP)
         self.resblocks = nn.ModuleList()
         for i in range(len(self.ups)):
             ch = hp.gen.upsample_initial_channel // (2 ** (i + 1))
-            for k, d in zip(hp.gen.resblock_kernel_sizes, hp.gen.resblock_dilation_sizes):
+            for k, d in zip(
+                hp.gen.resblock_kernel_sizes, hp.gen.resblock_dilation_sizes
+            ):
                 self.resblocks.append(AMPBlock(ch, k, d))
 
         # post conv
@@ -152,7 +152,7 @@ class Generator(torch.nn.Module):
             l.remove_weight_norm()
 
     def eval(self, inference=False):
-        super(Generator, self).eval()
+        super().eval()
         # don't remove weight norm while validation in training loop
         if inference:
             self.remove_weight_norm()
@@ -168,7 +168,7 @@ class Generator(torch.nn.Module):
         MAX_WAV_VALUE = 32768.0
         audio = audio.squeeze()
         audio = MAX_WAV_VALUE * audio
-        audio = audio.clamp(min=-MAX_WAV_VALUE, max=MAX_WAV_VALUE-1)
+        audio = audio.clamp(min=-MAX_WAV_VALUE, max=MAX_WAV_VALUE - 1)
         audio = audio.short()
         return audio.cpu().detach().numpy()
 

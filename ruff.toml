@@ -1,0 +1,51 @@
+respect-gitignore = true
+show-fixes = true
+exclude = ["*.ipynb"]
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+extend-fixable = ["B","U"]
+
+ignore = [
+    "B904",
+    "E402",
+    "E501",
+    "E722",
+    "E741",
+    "SIM102",
+    "SIM117",
+    "UP031"
+]
+
+# unfixable = ["B"]
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+
+[lint.isort]
+case-sensitive = true
+combine-as-imports = true
+
+[format]
+docstring-code-format = true
+
+preview = true
+
+[analyze]
+detect-string-imports = true
+preview = true
+
+

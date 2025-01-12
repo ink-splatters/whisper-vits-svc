@@ -1,12 +1,16 @@
-import sys,os
+import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import numpy as np
 import argparse
-import torch
 import random
+
+import numpy as np
+import torch
 from tqdm import tqdm
-from whisper.model import Whisper, ModelDimensions
-from whisper.audio import load_audio, pad_or_trim, log_mel_spectrogram
+
+from whisper.audio import load_audio, log_mel_spectrogram, pad_or_trim
+from whisper.model import ModelDimensions, Whisper
 
 
 def load_model(path) -> Whisper:
@@ -60,7 +64,7 @@ if __name__ == "__main__":
             os.makedirs(f"./{ppgPath}/{spks}", exist_ok=True)
 
             files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
-            for file in tqdm(files, desc=f'Processing ppg {spks}'):
+            for file in tqdm(files, desc=f"Processing ppg {spks}"):
                 if file.endswith(".wav"):
                     # print(file)
                     file = file[:-4]

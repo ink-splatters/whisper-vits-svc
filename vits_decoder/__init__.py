@@ -1,1 +1,1 @@
-from .alias.act import SnakeAlias
+from .alias.act import SnakeAlias as SnakeAlias

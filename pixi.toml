@@ -1,14 +1,14 @@
 [project]
 authors = ["Peter A. <ink.splatters@pm.me>"]
 channels = ["conda-forge"]
-description = "Add a short description here"
-name = "whisper-vits-svc"
+name = "whisper_vits_svc"
 platforms = ["osx-arm64"]
 version = "0.1.0"
 
 [tasks]
 
 [dependencies]
+"python" = ">=3.12"
 fsspec = ">=2024.12.0"
 pyworld = ">=0.3.4"
 matplotlib = ">=3.10.0"
@@ -31,4 +31,13 @@ soundfile = "*"
 torch = { version = "*", index = "https://download.pytorch.org/whl/nightly/cpu" }
 torchaudio = { version = "*", index = "https://download.pytorch.org/whl/nightly/cpu" }
 
+[feature.test.dependencies]
+pytest = "*"
 
+[feature.lint.dependencies]
+ruff = "*"
+
+
+[environments]
+default = { solve-group="default" }
+dev = { features=["test","lint"], solve-group="dev"}

@@ -1,10 +1,10 @@
-import os
 import argparse
+import os
 
-from tqdm import tqdm
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-from pydub import effects
+from tqdm import tqdm
+
 # this file is for VCTK, use after CDC
 
 
@@ -40,11 +40,13 @@ if __name__ == "__main__":
     outPath = args.outPath
 
     for spks in os.listdir(rootPath):
-        if (os.path.isdir(f"./{rootPath}/{spks}")):
+        if os.path.isdir(f"./{rootPath}/{spks}"):
             os.makedirs(f"./{outPath}/{spks}", exist_ok=True)
 
-            files = [f for f in os.listdir(f"./{rootPath}/{spks}") if f.endswith(".wav")]
-            for file in tqdm(files, desc=f'Processing sil {spks}'):
+            files = [
+                f for f in os.listdir(f"./{rootPath}/{spks}") if f.endswith(".wav")
+            ]
+            for file in tqdm(files, desc=f"Processing sil {spks}"):
                 iWave = f"./{rootPath}/{spks}/{file}"
                 oWave = f"./{outPath}/{spks}/{file}"
                 trim_silence(iWave, oWave)

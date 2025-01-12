@@ -7,17 +7,16 @@ import torch
 
 import crepe
 
-
 ###############################################################################
 # Constants
 ###############################################################################
 
 
 # Minimum decibel level
-MIN_DB = -100.
+MIN_DB = -100.0
 
 # Reference decibel level
-REF_DB = 20.
+REF_DB = 20.0
 
 
 ###############################################################################
@@ -42,16 +41,18 @@ def a_weighted(audio, sample_rate, hop_length=None, pad=True):
         hop_length = int(hop_length * crepe.SAMPLE_RATE / sample_rate)
 
     # Cache weights
-    if not hasattr(a_weighted, 'weights'):
+    if not hasattr(a_weighted, "weights"):
         a_weighted.weights = perceptual_weights()
 
     # Take stft
-    stft = librosa.stft(audio,
-                        n_fft=crepe.WINDOW_SIZE,
-                        hop_length=hop_length,
-                        win_length=crepe.WINDOW_SIZE,
-                        center=pad,
-                        pad_mode='constant')
+    stft = librosa.stft(
+        audio,
+        n_fft=crepe.WINDOW_SIZE,
+        hop_length=hop_length,
+        win_length=crepe.WINDOW_SIZE,
+        center=pad,
+        pad_mode="constant",
+    )
 
     # Compute magnitude on db scale
     db = librosa.amplitude_to_db(np.abs(stft))
@@ -68,11 +69,10 @@ def a_weighted(audio, sample_rate, hop_length=None, pad=True):
 
 def perceptual_weights():
     """A-weighted frequency-dependent perceptual loudness weights"""
-    frequencies = librosa.fft_frequencies(sr=crepe.SAMPLE_RATE,
-                                          n_fft=crepe.WINDOW_SIZE)
+    frequencies = librosa.fft_frequencies(sr=crepe.SAMPLE_RATE, n_fft=crepe.WINDOW_SIZE)
 
     # A warning is raised for nearly inaudible frequencies, but it ends up
     # defaulting to -100 db. That default is fine for our purposes.
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', RuntimeWarning)
+        warnings.simplefilter("ignore", RuntimeWarning)
         return librosa.A_weighting(frequencies)[:, None] - REF_DB

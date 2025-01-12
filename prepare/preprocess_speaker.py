@@ -1,18 +1,20 @@
-import sys,os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import torch
-import numpy as np
-import argparse
+import os
+import sys
 
-from tqdm import tqdm
-from functools import partial
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import argparse
 from argparse import RawTextHelpFormatter
+from functools import partial
 from multiprocessing.pool import ThreadPool
 
-from speaker.models.lstm import LSTMSpeakerEncoder
+import numpy as np
+import torch
+from tqdm import tqdm
+
 from speaker.config import SpeakerEncoderConfig
-from speaker.utils.audio import AudioProcessor
 from speaker.infer import read_json
+from speaker.models.lstm import LSTMSpeakerEncoder
+from speaker.utils.audio import AudioProcessor
 
 
 def get_spk_wavs(dataset_path, output_path):
@@ -29,10 +31,10 @@ def get_spk_wavs(dataset_path, output_path):
     return wav_files
 
 
-def process_wav(wav_file, dataset_path, output_path, args, speaker_encoder_ap, speaker_encoder):
-    waveform = speaker_encoder_ap.load_wav(
-        wav_file, sr=speaker_encoder_ap.sample_rate
-    )
+def process_wav(
+    wav_file, dataset_path, output_path, args, speaker_encoder_ap, speaker_encoder
+):
+    waveform = speaker_encoder_ap.load_wav(wav_file, sr=speaker_encoder_ap.sample_rate)
     spec = speaker_encoder_ap.melspectrogram(waveform)
     spec = torch.from_numpy(spec.T)
     if args.use_cuda:
@@ -45,15 +47,29 @@ def process_wav(wav_file, dataset_path, output_path, args, speaker_encoder_ap, s
     np.save(embed_path, embed, allow_pickle=False)
 
 
-def extract_speaker_embeddings(wav_files, dataset_path, output_path, args, speaker_encoder_ap, speaker_encoder, concurrency):
-    bound_process_wav = partial(process_wav, dataset_path=dataset_path, output_path=output_path, args=args, speaker_encoder_ap=speaker_encoder_ap, speaker_encoder=speaker_encoder)
+def extract_speaker_embeddings(
+    wav_files,
+    dataset_path,
+    output_path,
+    args,
+    speaker_encoder_ap,
+    speaker_encoder,
+    concurrency,
+):
+    bound_process_wav = partial(
+        process_wav,
+        dataset_path=dataset_path,
+        output_path=output_path,
+        args=args,
+        speaker_encoder_ap=speaker_encoder_ap,
+        speaker_encoder=speaker_encoder,
+    )
 
     with ThreadPool(concurrency) as pool:
         list(tqdm(pool.imap(bound_process_wav, wav_files), total=len(wav_files)))
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(
         description="""Compute embedding vectors for each wav file in a dataset.""",
         formatter_class=RawTextHelpFormatter,
@@ -63,7 +79,14 @@ if __name__ == "__main__":
         "output_path", type=str, help="path for output speaker/speaker_wavs.npy."
     )
     parser.add_argument("--use_cuda", type=bool, help="flag to set cuda.", default=True)
-    parser.add_argument("-t", "--thread_count", help="thread count to process, set 0 to use all cpu cores", dest="thread_count", type=int, default=1)
+    parser.add_argument(
+        "-t",
+        "--thread_count",
+        help="thread count to process, set 0 to use all cpu cores",
+        dest="thread_count",
+        type=int,
+        default=1,
+    )
     args = parser.parse_args()
     dataset_path = args.dataset_path
     output_path = args.output_path
@@ -95,9 +118,14 @@ if __name__ == "__main__":
 
     wav_files = get_spk_wavs(dataset_path, output_path)
 
-    if thread_count == 0:
-        process_num = os.cpu_count()
-    else:
-        process_num = thread_count
+    process_num = os.cpu_count() if thread_count == 0 else thread_count
 
-    extract_speaker_embeddings(wav_files, dataset_path, output_path, args, speaker_encoder_ap, speaker_encoder, process_num)
+    extract_speaker_embeddings(
+        wav_files,
+        dataset_path,
+        output_path,
+        args,
+        speaker_encoder_ap,
+        speaker_encoder,
+        process_num,
+    )

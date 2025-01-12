@@ -1,6 +1,6 @@
 import copy
 import random
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -28,7 +28,7 @@ class Hubert(nn.Module):
         self.masked_spec_embed = nn.Parameter(torch.FloatTensor(768).uniform_())
         self.label_embedding = nn.Embedding(num_label_embeddings, 256)
 
-    def mask(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def mask(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         mask = None
         if self.training and self._mask:
             mask = _compute_mask((x.size(0), x.size(1)), 0.8, 10, x.device, 2)
@@ -36,8 +36,8 @@ class Hubert(nn.Module):
         return x, mask
 
     def encode(
-            self, x: torch.Tensor, layer: Optional[int] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, x: torch.Tensor, layer: Optional[int] = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.feature_extractor(x)
         x = self.feature_projection(x.transpose(1, 2))
         x, mask = self.mask(x)
@@ -54,7 +54,7 @@ class Hubert(nn.Module):
         )
         return logits / 0.1
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x, mask = self.encode(x)
         x = self.proj(x)
         logits = self.logits(x)
@@ -129,20 +129,20 @@ class PositionalConvEmbedding(nn.Module):
 
 class TransformerEncoder(nn.Module):
     def __init__(
-            self, encoder_layer: nn.TransformerEncoderLayer, num_layers: int
+        self, encoder_layer: nn.TransformerEncoderLayer, num_layers: int
     ) -> None:
-        super(TransformerEncoder, self).__init__()
-        self.layers = nn.ModuleList(
-            [copy.deepcopy(encoder_layer) for _ in range(num_layers)]
-        )
+        super().__init__()
+        self.layers = nn.ModuleList([
+            copy.deepcopy(encoder_layer) for _ in range(num_layers)
+        ])
         self.num_layers = num_layers
 
     def forward(
-            self,
-            src: torch.Tensor,
-            mask: torch.Tensor = None,
-            src_key_padding_mask: torch.Tensor = None,
-            output_layer: Optional[int] = None,
+        self,
+        src: torch.Tensor,
+        mask: torch.Tensor = None,
+        src_key_padding_mask: torch.Tensor = None,
+        output_layer: Optional[int] = None,
     ) -> torch.Tensor:
         output = src
         for layer in self.layers[:output_layer]:
@@ -153,11 +153,11 @@ class TransformerEncoder(nn.Module):
 
 
 def _compute_mask(
-        shape: Tuple[int, int],
-        mask_prob: float,
-        mask_length: int,
-        device: torch.device,
-        min_masks: int = 0,
+    shape: tuple[int, int],
+    mask_prob: float,
+    mask_length: int,
+    device: torch.device,
+    min_masks: int = 0,
 ) -> torch.Tensor:
     batch_size, sequence_length = shape
 
@@ -208,7 +208,7 @@ def _compute_mask(
 
 
 def hubert_soft(
-        path: str,
+    path: str,
 ) -> HubertSoft:
     r"""HuBERT-Soft from `"A Comparison of Discrete and Soft Speech Units for Improved Voice Conversion"`.
     Args:

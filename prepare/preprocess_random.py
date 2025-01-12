@@ -1,16 +1,15 @@
 import random
 
-
 if __name__ == "__main__":
     all_items = []
-    fo = open("./files/train_all.txt", "r+", encoding='utf-8')
-    while (True):
+    fo = open("./files/train_all.txt", "r+", encoding="utf-8")
+    while True:
         try:
             item = fo.readline().strip()
         except Exception as e:
-            print('nothing of except:', e)
+            print("nothing of except:", e)
             break
-        if (item == None or item == ""):
+        if item is None or item == "":
             break
         all_items.append(item)
     fo.close()

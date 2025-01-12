@@ -130,7 +130,6 @@ def nanfilter(signals, win_length, filter_fn):
 
     # Loop over frames
     for i in range(signals.size(1)):
-
         # Get analysis window bounds
         start = max(0, i - win_length // 2)
         end = min(signals.size(1), i + win_length // 2 + 1)
@@ -157,7 +156,7 @@ def nanmean(signals):
     nans = torch.isnan(signals)
 
     # Set nans to 0.
-    signals[nans] = 0.
+    signals[nans] = 0.0
 
     # Compute average
     return signals.sum(dim=1) / (~nans).float().sum(dim=1)

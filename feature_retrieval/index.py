@@ -3,15 +3,13 @@ import logging
 import math
 import time
 from pathlib import Path
-from typing import TypeVar, Generic, cast, Any
-
-import numpy as np
-import numpy.typing as npt
-
-from tqdm import tqdm
+from typing import Any, Generic, TypeVar, cast
 
 import faiss
-from faiss import IndexIVF, Index
+import numpy as np
+import numpy.typing as npt
+from faiss import Index, IndexIVF
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +33,11 @@ class FaissRetrievableFeatureIndex(FaissFeatureIndex[Index], abc.ABC):
     def __init__(self, index: T, ratio: float, n_nearest_vectors: int) -> None:
         super().__init__(index=index)
         if index.metric_type != self.supported_distance:
-            raise ValueError(f"index metric type {index.metric_type=} is unsupported {self.supported_distance=}")
+            raise ValueError(
+                f"index metric type {index.metric_type=} is unsupported {self.supported_distance=}"
+            )
 
-        if 1 > n_nearest_vectors:
+        if n_nearest_vectors < 1:
             raise ValueError("n-retrieval-vectors must be gte 1")
         self._n_nearest = n_nearest_vectors
 
@@ -51,14 +51,20 @@ class FaissRetrievableFeatureIndex(FaissFeatureIndex[Index], abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _weight_nearest_vectors(self, nearest_vectors: NumpyArray, scores: NumpyArray) -> NumpyArray:
+    def _weight_nearest_vectors(
+        self, nearest_vectors: NumpyArray, scores: NumpyArray
+    ) -> NumpyArray:
         raise NotImplementedError
 
     def retriv(self, features: NumpyArray) -> NumpyArray:
         # use method search_and_reconstruct instead of recreating the whole matrix
-        scores, _, nearest_vectors = self._index.search_and_reconstruct(features, k=self._n_nearest)
+        scores, _, nearest_vectors = self._index.search_and_reconstruct(
+            features, k=self._n_nearest
+        )
         weighted_nearest_vectors = self._weight_nearest_vectors(nearest_vectors, scores)
-        retriv_vector = (1 - self._ratio) * features + self._ratio * weighted_nearest_vectors
+        retriv_vector = (
+            1 - self._ratio
+        ) * features + self._ratio * weighted_nearest_vectors
         return retriv_vector
 
 
@@ -72,7 +78,9 @@ class FaissRVCRetrievableFeatureIndex(FaissRetrievableFeatureIndex):
     def supported_distance(self) -> Any:
         return faiss.METRIC_L2
 
-    def _weight_nearest_vectors(self, nearest_vectors: NumpyArray, scores: NumpyArray) -> NumpyArray:
+    def _weight_nearest_vectors(
+        self, nearest_vectors: NumpyArray, scores: NumpyArray
+    ) -> NumpyArray:
         """
         magic code from original RVC
         https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/blob/86ed98aacaa8b2037aad795abd11cdca122cf39f/vc_infer_pipeline.py#L213C18-L213C19
@@ -117,7 +125,11 @@ class FaissIVFTrainableFeatureIndex(FaissFeatureIndex[IndexIVF]):
         return math.ceil(feature_matrix.shape[0] / self._batch_size)
 
     def _split_matrix_by_batch(self, feature_matrix: NumpyArray) -> list[NumpyArray]:
-        return np.array_split(feature_matrix, indices_or_sections=self._batch_count(feature_matrix), axis=0)
+        return np.array_split(
+            feature_matrix,
+            indices_or_sections=self._batch_count(feature_matrix),
+            axis=0,
+        )
 
     def _train_index(self, train_feature_matrix: NumpyArray) -> None:
         start = time.monotonic()
@@ -148,7 +160,11 @@ class FaissIVFFlatTrainableFeatureIndexBuilder:
         n_ivf = min(int(16 * np.sqrt(num_vectors)), num_vectors // 39)
         factory_string = f"IVF{n_ivf},Flat"
         index = faiss.index_factory(vector_dim, factory_string, self._distance)
-        logger.debug('faiss index built by string "%s" and dimension %s', factory_string, vector_dim)
+        logger.debug(
+            'faiss index built by string "%s" and dimension %s',
+            factory_string,
+            vector_dim,
+        )
         index_ivf = faiss.extract_index_ivf(index)
         index_ivf.nprobe = 1
         return index
@@ -160,7 +176,11 @@ class FaissIVFFlatTrainableFeatureIndexBuilder:
         )
 
 
-def load_retrieve_index(filepath: Path, ratio: float, n_nearest_vectors: int) -> FaissRetrievableFeatureIndex:
+def load_retrieve_index(
+    filepath: Path, ratio: float, n_nearest_vectors: int
+) -> FaissRetrievableFeatureIndex:
     return FaissRVCRetrievableFeatureIndex(
-        index=faiss.read_index(str(filepath)), ratio=ratio, n_nearest_vectors=n_nearest_vectors
+        index=faiss.read_index(str(filepath)),
+        ratio=ratio,
+        n_nearest_vectors=n_nearest_vectors,
     )

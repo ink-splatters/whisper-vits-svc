@@ -1,17 +1,22 @@
+import functools
 import json
 import os
 import sys
+import weakref
 import zlib
 from typing import Callable, TextIO
 
 system_encoding = sys.getdefaultencoding()
 
 if system_encoding != "utf-8":
+
     def make_safe(string):
         # replaces any character not representable using the system default encoding with an '?',
         # avoiding UnicodeEncodeError (https://github.com/openai/whisper/discussions/729).
         return string.encode(system_encoding, errors="replace").decode(system_encoding)
+
 else:
+
     def make_safe(string):
         # utf-8 can encode any Unicode code point, so no need to do the round-trip encoding
         return string
@@ -43,7 +48,9 @@ def compression_ratio(text) -> float:
     return len(text_bytes) / len(zlib.compress(text_bytes))
 
 
-def format_timestamp(seconds: float, always_include_hours: bool = False, decimal_marker: str = '.'):
+def format_timestamp(
+    seconds: float, always_include_hours: bool = False, decimal_marker: str = "."
+):
     assert seconds >= 0, "non-negative timestamp expected"
     milliseconds = round(seconds * 1000.0)
 
@@ -57,7 +64,9 @@ def format_timestamp(seconds: float, always_include_hours: bool = False, decimal
     milliseconds -= seconds * 1_000
 
     hours_marker = f"{hours:02d}:" if always_include_hours or hours > 0 else ""
-    return f"{hours_marker}{minutes:02d}:{seconds:02d}{decimal_marker}{milliseconds:03d}"
+    return (
+        f"{hours_marker}{minutes:02d}:{seconds:02d}{decimal_marker}{milliseconds:03d}"
+    )
 
 
 class ResultWriter:
@@ -68,7 +77,9 @@ class ResultWriter:
 
     def __call__(self, result: dict, audio_path: str):
         audio_basename = os.path.basename(audio_path)
-        output_path = os.path.join(self.output_dir, audio_basename + "." + self.extension)
+        output_path = os.path.join(
+            self.output_dir, audio_basename + "." + self.extension
+        )
 
         with open(output_path, "w", encoding="utf-8") as f:
             self.write_result(result, file=f)
@@ -82,7 +93,7 @@ class WriteTXT(ResultWriter):
 
     def write_result(self, result: dict, file: TextIO):
         for segment in result["segments"]:
-            print(segment['text'].strip(), file=file, flush=True)
+            print(segment["text"].strip(), file=file, flush=True)
 
 
 class WriteVTT(ResultWriter):
@@ -124,14 +135,15 @@ class WriteTSV(ResultWriter):
     an environment setting a language encoding that causes the decimal in a floating point number
     to appear as a comma; also is faster and more efficient to parse & store, e.g., in C++.
     """
+
     extension: str = "tsv"
 
     def write_result(self, result: dict, file: TextIO):
         print("start", "end", "text", sep="\t", file=file)
         for segment in result["segments"]:
-            print(round(1000 * segment['start']), file=file, end="\t")
-            print(round(1000 * segment['end']), file=file, end="\t")
-            print(segment['text'].strip().replace("\t", " "), file=file, flush=True)
+            print(round(1000 * segment["start"]), file=file, end="\t")
+            print(round(1000 * segment["end"]), file=file, end="\t")
+            print(segment["text"].strip().replace("\t", " "), file=file, flush=True)
 
 
 class WriteJSON(ResultWriter):
@@ -161,3 +173,20 @@ def get_writer(output_format: str, output_dir: str) -> Callable[[dict, TextIO], 
 
     return writers[output_format](output_dir)
 
+
+
+def cache(*cache_args, **lru_kwargs):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapped_func(self, *args, **kwargs):
+            # We're storing the wrapped method inside the instance. If we had
+            # a strong reference to self the instance would never die.
+            self_weak = weakref.ref(self)
+            @functools.wraps(func)
+            @functools.lru_cache(*cache_args, **lru_kwargs)
+            def cached_method(*args, **kwargs):
+                return func(self_weak(), *args, **kwargs)
+            setattr(self, func.__name__, cached_method)
+            return cached_method(*args, **kwargs)
+        return wrapped_func
+    return decorator

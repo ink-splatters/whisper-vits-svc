@@ -29,7 +29,11 @@ class DummyRetrieval(IRetrieval):
 
 
 class FaissIndexRetrieval(IRetrieval):
-    def __init__(self, hubert_index: FaissRetrievableFeatureIndex, whisper_index: FaissRetrievableFeatureIndex) -> None:
+    def __init__(
+        self,
+        hubert_index: FaissRetrievableFeatureIndex,
+        whisper_index: FaissRetrievableFeatureIndex,
+    ) -> None:
         self._hubert_index = hubert_index
         self._whisper_index = whisper_index
 

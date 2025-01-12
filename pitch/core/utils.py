@@ -4,10 +4,13 @@
 | License: The MIT license, https://opensource.org/licenses/MIT
 | This file is part of libf0.
 """
+
 import numpy as np
 
 
-def sonify_trajectory_with_sinusoid(f0, t, audio_len, confidence=None, Fs=22050, smooth_len=11):
+def sonify_trajectory_with_sinusoid(
+    f0, t, audio_len, confidence=None, Fs=22050, smooth_len=11
+):
     """
     Sonification of trajectory with sinusoidal. Adapted from FMP notebook: C8/C8S2_FundFreqTracking.ipynb
 
@@ -53,20 +56,22 @@ def sonify_trajectory_with_sinusoid(f0, t, audio_len, confidence=None, Fs=22050,
             phase = 0
             continue
 
-        cur_soni = np.sin(2*np.pi*(cur_f*t+phase))
-        diff = np.maximum(0, (idx+1)*sine_len - len(x_soni))
+        cur_soni = np.sin(2 * np.pi * (cur_f * t + phase))
+        diff = np.maximum(0, (idx + 1) * sine_len - len(x_soni))
         if diff > 0:
-            x_soni[idx * sine_len:(idx + 1) * sine_len - diff] = cur_soni[:-diff]
-            amplitude_mod[idx * sine_len:(idx + 1) * sine_len - diff] = cur_amp
+            x_soni[idx * sine_len : (idx + 1) * sine_len - diff] = cur_soni[:-diff]
+            amplitude_mod[idx * sine_len : (idx + 1) * sine_len - diff] = cur_amp
         else:
-            x_soni[idx*sine_len:(idx+1)*sine_len-diff] = cur_soni
-            amplitude_mod[idx*sine_len:(idx+1)*sine_len-diff] = cur_amp
+            x_soni[idx * sine_len : (idx + 1) * sine_len - diff] = cur_soni
+            amplitude_mod[idx * sine_len : (idx + 1) * sine_len - diff] = cur_amp
 
         phase += cur_f * sine_len / Fs
-        phase -= 2 * np.round(phase/2)
+        phase -= 2 * np.round(phase / 2)
 
     # filter amplitudes to avoid transients
-    amplitude_mod = np.convolve(amplitude_mod, np.hanning(smooth_len)/np.sum(np.hanning(smooth_len)), 'same')
+    amplitude_mod = np.convolve(
+        amplitude_mod, np.hanning(smooth_len) / np.sum(np.hanning(smooth_len)), "same"
+    )
     x_soni = x_soni * amplitude_mod
     return x_soni
 

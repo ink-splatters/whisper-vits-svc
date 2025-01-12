@@ -1,13 +1,12 @@
 import numpy as np
 import torch
-from torch import nn
-
 from TTS.utils.io import load_fsspec
+from torch import nn
 
 
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=8):
-        super(SELayer, self).__init__()
+        super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(channel, channel // reduction),
@@ -27,8 +26,10 @@ class SEBasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, reduction=8):
-        super(SEBasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        super().__init__()
+        self.conv1 = nn.Conv2d(
+            inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
@@ -66,12 +67,16 @@ class ResNetSpeakerEncoder(nn.Module):
         self,
         input_dim=64,
         proj_dim=512,
-        layers=[3, 4, 6, 3],
-        num_filters=[32, 64, 128, 256],
+        layers=None,
+        num_filters=None,
         encoder_type="ASP",
         log_input=False,
     ):
-        super(ResNetSpeakerEncoder, self).__init__()
+        if num_filters is None:
+            num_filters = [32, 64, 128, 256]
+        if layers is None:
+            layers = [3, 4, 6, 3]
+        super().__init__()
 
         self.encoder_type = encoder_type
         self.input_dim = input_dim
@@ -82,9 +87,15 @@ class ResNetSpeakerEncoder(nn.Module):
 
         self.inplanes = num_filters[0]
         self.layer1 = self.create_layer(SEBasicBlock, num_filters[0], layers[0])
-        self.layer2 = self.create_layer(SEBasicBlock, num_filters[1], layers[1], stride=(2, 2))
-        self.layer3 = self.create_layer(SEBasicBlock, num_filters[2], layers[2], stride=(2, 2))
-        self.layer4 = self.create_layer(SEBasicBlock, num_filters[3], layers[3], stride=(2, 2))
+        self.layer2 = self.create_layer(
+            SEBasicBlock, num_filters[1], layers[1], stride=(2, 2)
+        )
+        self.layer3 = self.create_layer(
+            SEBasicBlock, num_filters[2], layers[2], stride=(2, 2)
+        )
+        self.layer4 = self.create_layer(
+            SEBasicBlock, num_filters[3], layers[3], stride=(2, 2)
+        )
 
         self.instancenorm = nn.InstanceNorm1d(input_dim)
 
@@ -121,7 +132,13 @@ class ResNetSpeakerEncoder(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -141,11 +158,10 @@ class ResNetSpeakerEncoder(nn.Module):
 
     def forward(self, x, l2_norm=False):
         x = x.transpose(1, 2)
-        with torch.no_grad():
-            with torch.cuda.amp.autocast(enabled=False):
-                if self.log_input:
-                    x = (x + 1e-6).log()
-                x = self.instancenorm(x).unsqueeze(1)
+        with torch.no_grad(), torch.cuda.amp.autocast(enabled=False):
+            if self.log_input:
+                x = (x + 1e-6).log()
+            x = self.instancenorm(x).unsqueeze(1)
 
         x = self.conv1(x)
         x = self.relu(x)
@@ -164,7 +180,7 @@ class ResNetSpeakerEncoder(nn.Module):
             x = torch.sum(x * w, dim=2)
         elif self.encoder_type == "ASP":
             mu = torch.sum(x * w, dim=2)
-            sg = torch.sqrt((torch.sum((x ** 2) * w, dim=2) - mu ** 2).clamp(min=1e-5))
+            sg = torch.sqrt((torch.sum((x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
             x = torch.cat((mu, sg), 1)
 
         x = x.view(x.size()[0], -1)
@@ -202,7 +218,13 @@ class ResNetSpeakerEncoder(nn.Module):
 
         return embeddings
 
-    def load_checkpoint(self, config: dict, checkpoint_path: str, eval: bool = False, use_cuda: bool = False):
+    def load_checkpoint(
+        self,
+        config: dict,
+        checkpoint_path: str,
+        eval: bool = False,
+        use_cuda: bool = False,
+    ):
         state = load_fsspec(checkpoint_path, map_location=torch.device("cpu"))
         self.load_state_dict(state["model"])
         if use_cuda:

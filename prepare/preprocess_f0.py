@@ -1,10 +1,11 @@
-import os
-import numpy as np
-import librosa
-import pyworld
 import argparse
-from tqdm import tqdm
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
+
+import librosa
+import numpy as np
+import pyworld
+from tqdm import tqdm
 
 
 def compute_f0(path, save):
@@ -32,9 +33,14 @@ def process_files_with_process_pool(wavPath, spks, pitPath, process_num=None):
     files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
 
     with ProcessPoolExecutor(max_workers=process_num) as executor:
-        futures = {executor.submit(process_file, file, wavPath, spks, pitPath): file for file in files}
+        futures = {
+            executor.submit(process_file, file, wavPath, spks, pitPath): file
+            for file in files
+        }
 
-        for future in tqdm(as_completed(futures), total=len(futures), desc=f'Processing f0 {spks}'):
+        for future in tqdm(
+            as_completed(futures), total=len(futures), desc=f"Processing f0 {spks}"
+        ):
             future.result()
 
 
@@ -42,8 +48,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--wav", help="wav", dest="wav", required=True)
     parser.add_argument("-p", "--pit", help="pit", dest="pit", required=True)
-    parser.add_argument("-t", "--thread_count", help="thread count to process, set 0 to use all cpu cores", dest="thread_count", type=int, default=1)
-    
+    parser.add_argument(
+        "-t",
+        "--thread_count",
+        help="thread count to process, set 0 to use all cpu cores",
+        dest="thread_count",
+        type=int,
+        default=1,
+    )
+
     args = parser.parse_args()
     print(args.wav)
     print(args.pit)

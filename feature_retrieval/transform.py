@@ -1,11 +1,10 @@
 import abc
 import logging
-from typing import cast, Callable
+from typing import Callable, cast
 
 from sklearn.cluster import MiniBatchKMeans
 
 from feature_retrieval.index import NumpyArray
-
 
 logger = logging.getLogger(__name__)
 

@@ -3,10 +3,11 @@ import json
 import os
 import pickle as pickle_tts
 import shutil
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Union
 
 import fsspec
 import torch
+
 from .coqpit import Coqpit
 
 
@@ -55,7 +56,12 @@ def copy_model_files(config: Coqpit, out_path, new_fields):
 
 def load_fsspec(
     path: str,
-    map_location: Union[str, Callable, torch.device, Dict[Union[str, torch.device], Union[str, torch.device]]] = None,
+    map_location: Union[
+        str,
+        Callable,
+        torch.device,
+        dict[Union[str, torch.device], Union[str, torch.device]],
+    ] = None,
     **kwargs,
 ) -> Any:
     """Like torch.load but can load from other locations (e.g. s3:// , gs://).
@@ -77,7 +83,9 @@ def load_checkpoint(model, checkpoint_path, use_cuda=False, eval=False):  # pyli
         state = load_fsspec(checkpoint_path, map_location=torch.device("cpu"))
     except ModuleNotFoundError:
         pickle_tts.Unpickler = RenamingUnpickler
-        state = load_fsspec(checkpoint_path, map_location=torch.device("cpu"), pickle_module=pickle_tts)
+        state = load_fsspec(
+            checkpoint_path, map_location=torch.device("cpu"), pickle_module=pickle_tts
+        )
     model.load_state_dict(state["model"])
     if use_cuda:
         model.cuda()
@@ -98,7 +106,9 @@ def save_fsspec(state: Any, path: str, **kwargs):
         torch.save(state, f, **kwargs)
 
 
-def save_model(config, model, optimizer, scaler, current_step, epoch, output_path, **kwargs):
+def save_model(
+    config, model, optimizer, scaler, current_step, epoch, output_path, **kwargs
+):
     if hasattr(model, "module"):
         model_state = model.module.state_dict()
     else:
@@ -139,9 +149,9 @@ def save_checkpoint(
     output_folder,
     **kwargs,
 ):
-    file_name = "checkpoint_{}.pth.tar".format(current_step)
+    file_name = f"checkpoint_{current_step}.pth.tar"
     checkpoint_path = os.path.join(output_folder, file_name)
-    print("\n > CHECKPOINT : {}".format(checkpoint_path))
+    print(f"\n > CHECKPOINT : {checkpoint_path}")
     save_model(
         config,
         model,
@@ -171,7 +181,7 @@ def save_best_model(
     if current_loss < best_loss:
         best_model_name = f"best_model_{current_step}.pth.tar"
         checkpoint_path = os.path.join(out_path, best_model_name)
-        print(" > BEST MODEL : {}".format(checkpoint_path))
+        print(f" > BEST MODEL : {checkpoint_path}")
         save_model(
             config,
             model,

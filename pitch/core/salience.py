@@ -4,14 +4,30 @@
 | License: The MIT license, https://opensource.org/licenses/MIT
 | This file is part of libf0.
 """
+
 import numpy as np
 from librosa import stft
-from scipy import ndimage, linalg
 from numba import njit
+from scipy import linalg, ndimage
 
 
-def salience(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, R=10.0, num_harm=10, freq_smooth_len=11,
-             alpha=0.9, gamma=0.0, constraint_region=None, tol=5, score_low=0.01, score_high=1.0):
+def salience(
+    x,
+    Fs=22050,
+    N=2048,
+    H=256,
+    F_min=55.0,
+    F_max=1760.0,
+    R=10.0,
+    num_harm=10,
+    freq_smooth_len=11,
+    alpha=0.9,
+    gamma=0.0,
+    constraint_region=None,
+    tol=5,
+    score_low=0.01,
+    score_high=1.0,
+):
     """
     Implementation of a salience-based F0-estimation algorithm using pitch contours, inspired by Melodia.
 
@@ -61,21 +77,38 @@ def salience(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, R=10.0, num_h
         Time axis
     sal: ndarray
         Salience value of estimated F0
-    
+
     See also
     --------
     [FMP] Notebook: C8/C8S2_SalienceRepresentation.ipynb
     """
 
     # compute salience representation via instantaneous frequency and harmonic summation
-    Z, F_coef_hertz = compute_salience_rep(x, Fs, N=N, H=H, F_min=F_min, F_max=F_max, R=R,
-                                           num_harm=num_harm, freq_smooth_len=freq_smooth_len,
-                                           alpha=alpha, gamma=gamma)
+    Z, F_coef_hertz = compute_salience_rep(
+        x,
+        Fs,
+        N=N,
+        H=H,
+        F_min=F_min,
+        F_max=F_max,
+        R=R,
+        num_harm=num_harm,
+        freq_smooth_len=freq_smooth_len,
+        alpha=alpha,
+        gamma=gamma,
+    )
 
     # compute trajectory via dynamic programming
     T_coef = (np.arange(Z.shape[1]) * H) / Fs
-    index_CR = compute_trajectory_cr(Z, T_coef, F_coef_hertz, constraint_region,
-                                     tol=tol, score_low=score_low, score_high=score_high)
+    index_CR = compute_trajectory_cr(
+        Z,
+        T_coef,
+        F_coef_hertz,
+        constraint_region,
+        tol=tol,
+        score_low=score_low,
+        score_high=score_high,
+    )
 
     traj = F_coef_hertz[index_CR]
     traj[index_CR == -1] = 0
@@ -89,7 +122,9 @@ def salience(x, Fs=22050, N=2048, H=256, F_min=55.0, F_max=1760.0, R=10.0, num_h
     return traj, T_coef, sal
 
 
-def compute_salience_rep(x, Fs, N, H, F_min, F_max, R, num_harm, freq_smooth_len, alpha, gamma):
+def compute_salience_rep(
+    x, Fs, N, H, F_min, F_max, R, num_harm, freq_smooth_len, alpha, gamma
+):
     """
     Compute salience representation [FMP, Eq. (8.56)]
 
@@ -130,13 +165,17 @@ def compute_salience_rep(x, Fs, N, H, F_min, F_max, R, num_harm, freq_smooth_len
     [FMP] Notebook: C8/C8S2_SalienceRepresentation.ipynb
     """
 
-    X = stft(x, n_fft=N, hop_length=H, win_length=N, pad_mode='constant')
+    X = stft(x, n_fft=N, hop_length=H, win_length=N, pad_mode="constant")
     Y_LF_IF_bin, F_coef_hertz = compute_y_lf_if_bin_eff(X, Fs, N, H, F_min, F_max, R)
-    
+
     # smoothing
-    Y_LF_IF_bin = ndimage.convolve1d(Y_LF_IF_bin, np.hanning(freq_smooth_len), axis=0, mode='constant')
-    
-    Z = compute_salience_from_logfreq_spec(Y_LF_IF_bin, R, n_harmonics=num_harm, alpha=alpha, beta=1, gamma=gamma)
+    Y_LF_IF_bin = ndimage.convolve1d(
+        Y_LF_IF_bin, np.hanning(freq_smooth_len), axis=0, mode="constant"
+    )
+
+    Z = compute_salience_from_logfreq_spec(
+        Y_LF_IF_bin, R, n_harmonics=num_harm, alpha=alpha, beta=1, gamma=gamma
+    )
     return Z, F_coef_hertz
 
 
@@ -204,14 +243,16 @@ def compute_y_lf_if_bin_eff(X, Fs, N, H, F_min, F_max, R):
 
     # perform binning on power spectrogram for each time frame separately
     Y = np.abs(X) ** 2
-    Y_LF_IF_bin = np.zeros((B+1, Y.shape[1]))
+    Y_LF_IF_bin = np.zeros((B + 1, Y.shape[1]))
     for t in range(Y.shape[1]):
         np.add.at(Y_LF_IF_bin[:, t], bin_assignment[:, t], Y[:, t])
 
     return Y_LF_IF_bin[:B, :], F_coef_hertz
 
 
-def compute_salience_from_logfreq_spec(lf_spec, R, n_harmonics, alpha, beta, gamma, harmonic_win_len=11):
+def compute_salience_from_logfreq_spec(
+    lf_spec, R, n_harmonics, alpha, beta, gamma, harmonic_win_len=11
+):
     """
     Compute salience representation using harmonic summation following [1]
 
@@ -244,30 +285,38 @@ def compute_salience_from_logfreq_spec(lf_spec, R, n_harmonics, alpha, beta, gam
 
     # magnitude thresholding and compression
     eps = np.finfo(np.float32).eps
-    threshold_mask = (20 * np.log10(lf_spec/np.max(lf_spec) + eps)) < gamma
+    threshold_mask = (20 * np.log10(lf_spec / np.max(lf_spec) + eps)) < gamma
     lf_spec = lf_spec**beta * threshold_mask
 
     # compute window
     max_diff_bins = harmonic_win_len // 2
-    window = np.cos(np.linspace(-1, 1, 2*max_diff_bins+1)*np.pi/2)**2  # cosine^2 window
+    window = (
+        np.cos(np.linspace(-1, 1, 2 * max_diff_bins + 1) * np.pi / 2) ** 2
+    )  # cosine^2 window
 
     # compute indices of harmonics
     harmonics = np.round(np.log2(np.arange(1, n_harmonics + 1)) * 1200 / R).astype(int)
-    weighting_vec = np.zeros((lf_spec.shape[0] + max_diff_bins))
+    weighting_vec = np.zeros(lf_spec.shape[0] + max_diff_bins)
 
     # compute weights
     for idx, h in enumerate(harmonics):
-        if h+harmonic_win_len > len(weighting_vec):
+        if h + harmonic_win_len > len(weighting_vec):
             break  # we reached the maximum length available
-        weighting_vec[h:h+harmonic_win_len] += window * alpha**idx
+        weighting_vec[h : h + harmonic_win_len] += window * alpha**idx
 
     # correlate lf_spec with the weighting vector on the frequency axis
-    Z = ndimage.correlate1d(lf_spec, weighting_vec[:],
-                            axis=0, mode='constant', cval=0, origin=-len(weighting_vec)//2 + max_diff_bins)
+    Z = ndimage.correlate1d(
+        lf_spec,
+        weighting_vec[:],
+        axis=0,
+        mode="constant",
+        cval=0,
+        origin=-len(weighting_vec) // 2 + max_diff_bins,
+    )
 
     # magnitude thresholding and compression
     threshold_mask = (20 * np.log10(Z / np.max(Z) + eps)) < gamma
-    Z = Z ** beta * threshold_mask
+    Z = Z**beta * threshold_mask
 
     return Z
 
@@ -286,7 +335,7 @@ def define_transition_matrix(B, tol=0, score_low=0.01, score_high=1.0):
         Score (low) for transition matrix (Default value = 0.01)
     score_high : float
         Score (high) for transition matrix (Default value = 1.0)
-    
+
     Returns
     -------
     T : ndarray
@@ -298,7 +347,7 @@ def define_transition_matrix(B, tol=0, score_low=0.01, score_high=1.0):
     """
 
     col = np.ones((B,)) * score_low
-    col[0:tol+1] = np.ones((tol+1, )) * score_high
+    col[0 : tol + 1] = np.ones((tol + 1,)) * score_high
     T = linalg.toeplitz(col)
     return T
 
@@ -314,7 +363,7 @@ def compute_trajectory_dp(Z, T):
         Salience representation
     T : ndarray
         Transisition matrix
-    
+
     Returns
     -------
     eta_DP : ndarray
@@ -336,21 +385,28 @@ def compute_trajectory_dp(Z, T):
 
     for n in np.arange(1, N):
         for b in np.arange(0, B):
-            D[b, n] = np.max(T_log[b, :] + D[:, n-1]) + Z_log[b, n]
-            E[b, n-1] = np.argmax(T_log[b, :] + D[:, n-1])
+            D[b, n] = np.max(T_log[b, :] + D[:, n - 1]) + Z_log[b, n]
+            E[b, n - 1] = np.argmax(T_log[b, :] + D[:, n - 1])
 
     # backtracking
     eta_DP = np.zeros(N)
-    eta_DP[N-1] = int(np.argmax(D[:, N-1]))
+    eta_DP[N - 1] = int(np.argmax(D[:, N - 1]))
 
-    for n in np.arange(N-2, -1, -1):
-        eta_DP[n] = E[int(eta_DP[n+1]), n]
+    for n in np.arange(N - 2, -1, -1):
+        eta_DP[n] = E[int(eta_DP[n + 1]), n]
 
     return eta_DP.astype(np.int64)
 
 
-def compute_trajectory_cr(Z, T_coef, F_coef_hertz, constraint_region=None,
-                          tol=5, score_low=0.01, score_high=1.0):
+def compute_trajectory_cr(
+    Z,
+    T_coef,
+    F_coef_hertz,
+    constraint_region=None,
+    tol=5,
+    score_low=0.01,
+    score_high=1.0,
+):
     """
     Trajectory tracking with constraint regions
     Notebook: C8/C8S2_FundFreqTracking.ipynb
@@ -372,7 +428,7 @@ def compute_trajectory_cr(Z, T_coef, F_coef_hertz, constraint_region=None,
         Score (low) for transition matrix (Default value = 0.01)
     score_high : float
         Score (high) for transition matrix (Default value = 1.0)
-    
+
     Returns
     -------
     eta : ndarray
@@ -401,15 +457,18 @@ def compute_trajectory_cr(Z, T_coef, F_coef_hertz, constraint_region=None,
             f_end_idx = np.argmin(np.abs(F_coef_hertz - f_end))
 
             # track in salience part
-            cur_Z = Z[f_start_idx:f_end_idx+1, t_start_idx:t_end_idx+1]
-            T = define_transition_matrix(cur_Z.shape[0], tol=tol,
-                                         score_low=score_low, score_high=score_high)
+            cur_Z = Z[f_start_idx : f_end_idx + 1, t_start_idx : t_end_idx + 1]
+            T = define_transition_matrix(
+                cur_Z.shape[0], tol=tol, score_low=score_low, score_high=score_high
+            )
             cur_eta = compute_trajectory_dp(cur_Z, T)
 
             # fill contour
-            eta[t_start_idx:t_end_idx+1] = f_start_idx + cur_eta
+            eta[t_start_idx : t_end_idx + 1] = f_start_idx + cur_eta
     else:
-        T = define_transition_matrix(Z.shape[0], tol=tol, score_low=score_low, score_high=score_high)
+        T = define_transition_matrix(
+            Z.shape[0], tol=tol, score_low=score_low, score_high=score_high
+        )
         eta = compute_trajectory_dp(Z, T)
 
     return eta
@@ -428,7 +487,7 @@ def frequency_to_bin_index(F, R, F_ref):
         Frequency resolution in cents (Default value = 10.0)
     F_ref : float
         Reference frequency in Hz (Default value = 55.0)
-    
+
     Returns
     -------
         bin_index (int): Index for bin (starting with index 0)

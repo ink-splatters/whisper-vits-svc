@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from vits import commons
 
+from vits import commons
 
 LRELU_SLOPE = 0.1
 
@@ -133,7 +133,7 @@ class WN(torch.nn.Module):
         gin_channels=0,
         p_dropout=0,
     ):
-        super(WN, self).__init__()
+        super().__init__()
         assert kernel_size % 2 == 1
         self.hidden_channels = hidden_channels
         self.kernel_size = (kernel_size,)
@@ -197,7 +197,7 @@ class WN(torch.nn.Module):
             if i < self.n_layers - 1:
                 res_acts = res_skip_acts[:, : self.hidden_channels, :]
                 x = (x + res_acts) * x_mask
-                output = output + res_skip_acts[:, self.hidden_channels:, :]
+                output = output + res_skip_acts[:, self.hidden_channels :, :]
             else:
                 output = output + res_skip_acts
         return output * x_mask
@@ -278,8 +278,7 @@ class ResidualCouplingLayer(nn.Module):
             n_layers,
             p_dropout=p_dropout,
         )
-        self.post = nn.Conv1d(
-            hidden_channels, self.half_channels * (2 - mean_only), 1)
+        self.post = nn.Conv1d(hidden_channels, self.half_channels * (2 - mean_only), 1)
         self.post.weight.data.zero_()
         self.post.bias.data.zero_()
         # SNAC Speaker-normalized Affine Coupling Layer
@@ -308,7 +307,8 @@ class ResidualCouplingLayer(nn.Module):
             x = torch.cat([x0, x1], 1)
             # speaker var to logdet
             logdet = torch.sum(logs * x_mask, [1, 2]) - torch.sum(
-                speaker_v.expand(-1, -1, logs.size(-1)) * x_mask, [1, 2])
+                speaker_v.expand(-1, -1, logs.size(-1)) * x_mask, [1, 2]
+            )
             return x, logdet
         else:
             x1 = (x1 - m) * torch.exp(-logs) * x_mask
@@ -317,7 +317,8 @@ class ResidualCouplingLayer(nn.Module):
             x = torch.cat([x0, x1], 1)
             # speaker var to logdet
             logdet = torch.sum(-logs * x_mask, [1, 2]) + torch.sum(
-                speaker_v.expand(-1, -1, logs.size(-1)) * x_mask, [1, 2])
+                speaker_v.expand(-1, -1, logs.size(-1)) * x_mask, [1, 2]
+            )
             return x, logdet
 
     def remove_weight_norm(self):

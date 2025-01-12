@@ -1,16 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils import weight_norm, spectral_norm
+from torch.nn.utils import spectral_norm, weight_norm
+
 
 class DiscriminatorR(torch.nn.Module):
     def __init__(self, hp, resolution):
-        super(DiscriminatorR, self).__init__()
+        super().__init__()
 
         self.resolution = resolution
         self.LRELU_SLOPE = hp.mpd.lReLU_slope
 
-        norm_f = weight_norm if hp.mrd.use_spectral_norm == False else spectral_norm
+        norm_f = weight_norm if hp.mrd.use_spectral_norm is False else spectral_norm
 
         self.convs = nn.ModuleList([
             norm_f(nn.Conv2d(1, 32, (3, 9), padding=(1, 4))),
@@ -38,21 +39,32 @@ class DiscriminatorR(torch.nn.Module):
 
     def spectrogram(self, x):
         n_fft, hop_length, win_length = self.resolution
-        x = F.pad(x, (int((n_fft - hop_length) / 2), int((n_fft - hop_length) / 2)), mode='reflect')
+        x = F.pad(
+            x,
+            (int((n_fft - hop_length) / 2), int((n_fft - hop_length) / 2)),
+            mode="reflect",
+        )
         x = x.squeeze(1)
-        x = torch.stft(x, n_fft=n_fft, hop_length=hop_length, win_length=win_length, center=False, return_complex=False) #[B, F, TT, 2]
-        mag = torch.norm(x, p=2, dim =-1) #[B, F, TT]
+        x = torch.stft(
+            x,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            win_length=win_length,
+            center=False,
+            return_complex=False,
+        )  # [B, F, TT, 2]
+        mag = torch.norm(x, p=2, dim=-1)  # [B, F, TT]
 
         return mag
 
 
 class MultiResolutionDiscriminator(torch.nn.Module):
     def __init__(self, hp):
-        super(MultiResolutionDiscriminator, self).__init__()
+        super().__init__()
         self.resolutions = eval(hp.mrd.resolutions)
-        self.discriminators = nn.ModuleList(
-            [DiscriminatorR(hp, resolution) for resolution in self.resolutions]
-        )
+        self.discriminators = nn.ModuleList([
+            DiscriminatorR(hp, resolution) for resolution in self.resolutions
+        ])
 
     def forward(self, x):
         ret = list()

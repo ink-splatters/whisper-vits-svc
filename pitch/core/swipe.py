@@ -4,12 +4,22 @@
 | License: The MIT license, https://opensource.org/licenses/MIT
 | This file is part of libf0.
 """
-from scipy import interpolate
-import numpy as np
+
 import librosa
+import numpy as np
+from scipy import interpolate
 
 
-def swipe(x, Fs=22050, H=256, F_min=55.0, F_max=1760.0, dlog2p=1 / 96, derbs=0.1, strength_threshold=0):
+def swipe(
+    x,
+    Fs=22050,
+    H=256,
+    F_min=55.0,
+    F_max=1760.0,
+    dlog2p=1 / 96,
+    derbs=0.1,
+    strength_threshold=0,
+):
     """
     Implementation of a sawtooth waveform inspired pitch estimator (SWIPE).
     This version of the algorithm follows the original implementation, see `swipe_slim` for a more efficient
@@ -77,8 +87,12 @@ def swipe(x, Fs=22050, H=256, F_min=55.0, F_max=1760.0, dlog2p=1 / 96, derbs=0.1
 
         x_zero_padded = np.concatenate([x, np.zeros(N)])
 
-        X = librosa.stft(x_zero_padded, n_fft=N, hop_length=H, pad_mode='constant', center=True)
-        ti = librosa.frames_to_time(np.arange(0, X.shape[1]), sr=Fs, hop_length=H, n_fft=N)
+        X = librosa.stft(
+            x_zero_padded, n_fft=N, hop_length=H, pad_mode="constant", center=True
+        )
+        ti = librosa.frames_to_time(
+            np.arange(0, X.shape[1]), sr=Fs, hop_length=H, n_fft=N
+        )
         f = librosa.fft_frequencies(sr=Fs, n_fft=N)
 
         ti = np.insert(ti, 0, 0)
@@ -113,7 +127,7 @@ def swipe(x, Fs=22050, H=256, F_min=55.0, F_max=1760.0, dlog2p=1 / 96, derbs=0.1
 
         S[j, :] = S[j, :] + np.multiply(
             np.ones(resampled_pitch_strength.shape) * mu.reshape((mu.shape[0], 1)),
-            resampled_pitch_strength
+            resampled_pitch_strength,
         )
 
     # Fine-tune the pitch using parabolic interpolation
@@ -141,7 +155,7 @@ def T_coef(m, H, Fs):
 
 def stft_with_f_t(y, N, H, Fs):
     """STFT wrapper"""
-    x = librosa.stft(y, int(N), int(H), pad_mode='constant', center=True)
+    x = librosa.stft(y, int(N), int(H), pad_mode="constant", center=True)
     f = F_coef(np.arange(0, x.shape[0]), N, Fs)
     t = T_coef(np.arange(0, x.shape[1]), H, Fs)
 
@@ -161,8 +175,10 @@ def erbs2hz(erbs):
 def pitch_strength_all_candidates(ferbs, loudness, pitch_candidates):
     """Compute pitch strength for all pitch candidates"""
     # Normalize loudness
-    normalization_loudness = np.full_like(loudness, np.sqrt(np.sum(loudness * loudness, axis=0)))
-    with np.errstate(divide='ignore', invalid='ignore'):
+    normalization_loudness = np.full_like(
+        loudness, np.sqrt(np.sum(loudness * loudness, axis=0))
+    )
+    with np.errstate(divide="ignore", invalid="ignore"):
         loudness = loudness / normalization_loudness
 
     # Create pitch salience matrix
@@ -175,7 +191,9 @@ def pitch_strength_all_candidates(ferbs, loudness, pitch_candidates):
 
 def pitch_strength_one(erbs_frequencies, normalized_loudness, pitch_candidate):
     """Compute pitch strength for one pitch candidate"""
-    number_of_harmonics = np.floor(erbs_frequencies[-1] / pitch_candidate - 0.75).astype(np.int32)
+    number_of_harmonics = np.floor(
+        erbs_frequencies[-1] / pitch_candidate - 0.75
+    ).astype(np.int32)
     k = np.zeros(erbs_frequencies.shape)
 
     # f_prime / f
@@ -185,7 +203,7 @@ def pitch_strength_one(erbs_frequencies, normalized_loudness, pitch_candidate):
         a = np.abs(q - i)
         p = a < 0.25
         k[p] = np.cos(np.dot(2 * np.pi, q[p]))
-        v = np.logical_and(0.25 < a, a < 0.75)
+        v = np.logical_and(a > 0.25, a < 0.75)
         k[v] = k[v] + np.cos(np.dot(2 * np.pi, q[v])) / 2
 
     # Apply envelope
@@ -217,16 +235,23 @@ def resample_time(pitch_strength, resampled_time, ti):
     if pitch_strength.shape[1] > 0:
         pitch_strength = interpolate_one_candidate(pitch_strength, ti, resampled_time)
     else:
-        pitch_strength = np.kron(np.ones((len(pitch_strength), len(resampled_time))), np.NaN)
+        pitch_strength = np.kron(
+            np.ones((len(pitch_strength), len(resampled_time))), np.NaN
+        )
     return pitch_strength
 
 
 def interpolate_one_candidate(pitch_strength, ti, resampled_time):
     """Interpolate time axis"""
-    pitch_strength_interpolated = np.zeros((pitch_strength.shape[0], len(resampled_time)))
+    pitch_strength_interpolated = np.zeros((
+        pitch_strength.shape[0],
+        len(resampled_time),
+    ))
 
     for s in range(pitch_strength.shape[0]):
-        t_i = interpolate.interp1d(ti, pitch_strength[s, :], 'linear', bounds_error=True)
+        t_i = interpolate.interp1d(
+            ti, pitch_strength[s, :], "linear", bounds_error=True
+        )
         pitch_strength_interpolated[s, :] = t_i(resampled_time)
 
     return pitch_strength_interpolated
@@ -244,9 +269,7 @@ def parabolic_int(pitch_strength, strength_threshold, pc):
         if s[j] < strength_threshold:
             continue
 
-        if i == 0:
-            p[j] = pc[0]
-        elif i == len(pc) - 1:
+        if i == 0 or i == len(pc) - 1:
             p[j] = pc[0]
         else:
             I = np.arange(i - 1, i + 2)
@@ -257,7 +280,9 @@ def parabolic_int(pitch_strength, strength_threshold, pc):
                 p[j] = np.nan
             else:
                 c = np.polyfit(ntc, pitch_strength[I, j], 2)
-                ftc = 1 / 2 ** np.arange(np.log2(pc[I[0]]), np.log2(pc[I[2]]), 1 / 12 / 64)
+                ftc = 1 / 2 ** np.arange(
+                    np.log2(pc[I[0]]), np.log2(pc[I[2]]), 1 / 12 / 64
+                )
                 nftc = np.dot((ftc / tc[1] - 1), 2 * np.pi)
                 poly = np.polyval(c, nftc)
                 k = np.argmax(poly)
@@ -268,15 +293,176 @@ def parabolic_int(pitch_strength, strength_threshold, pc):
 
 def primes(n):
     """Returns a set of n prime numbers"""
-    small_primes = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89,
-                             97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181,
-                             191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
-                             283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397,
-                             401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
-                             509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619,
-                             631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743,
-                             751, 757, 761, 769, 773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863,
-                             877, 881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997])
+    small_primes = np.array([
+        2,
+        3,
+        5,
+        7,
+        11,
+        13,
+        17,
+        19,
+        23,
+        29,
+        31,
+        37,
+        41,
+        43,
+        47,
+        53,
+        59,
+        61,
+        67,
+        71,
+        73,
+        79,
+        83,
+        89,
+        97,
+        101,
+        103,
+        107,
+        109,
+        113,
+        127,
+        131,
+        137,
+        139,
+        149,
+        151,
+        157,
+        163,
+        167,
+        173,
+        179,
+        181,
+        191,
+        193,
+        197,
+        199,
+        211,
+        223,
+        227,
+        229,
+        233,
+        239,
+        241,
+        251,
+        257,
+        263,
+        269,
+        271,
+        277,
+        281,
+        283,
+        293,
+        307,
+        311,
+        313,
+        317,
+        331,
+        337,
+        347,
+        349,
+        353,
+        359,
+        367,
+        373,
+        379,
+        383,
+        389,
+        397,
+        401,
+        409,
+        419,
+        421,
+        431,
+        433,
+        439,
+        443,
+        449,
+        457,
+        461,
+        463,
+        467,
+        479,
+        487,
+        491,
+        499,
+        503,
+        509,
+        521,
+        523,
+        541,
+        547,
+        557,
+        563,
+        569,
+        571,
+        577,
+        587,
+        593,
+        599,
+        601,
+        607,
+        613,
+        617,
+        619,
+        631,
+        641,
+        643,
+        647,
+        653,
+        659,
+        661,
+        673,
+        677,
+        683,
+        691,
+        701,
+        709,
+        719,
+        727,
+        733,
+        739,
+        743,
+        751,
+        757,
+        761,
+        769,
+        773,
+        787,
+        797,
+        809,
+        811,
+        821,
+        823,
+        827,
+        829,
+        839,
+        853,
+        857,
+        859,
+        863,
+        877,
+        881,
+        883,
+        887,
+        907,
+        911,
+        919,
+        929,
+        937,
+        941,
+        947,
+        953,
+        967,
+        971,
+        977,
+        983,
+        991,
+        997,
+    ])
 
     b = small_primes <= n
     return small_primes[b]

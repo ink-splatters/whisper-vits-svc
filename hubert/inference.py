@@ -1,9 +1,12 @@
-import sys,os
+import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import numpy as np
 import argparse
-import torch
+
 import librosa
+import numpy as np
+import torch
 
 from hubert import hubert_model
 
@@ -16,7 +19,7 @@ def load_audio(file: str, sr: int = 16000):
 def load_model(path, device):
     model = hubert_model.hubert_soft(path)
     model.eval()
-    if not (device == "cpu"):
+    if device != "cpu":
         model.half()
     model.to(device)
     return model
@@ -27,21 +30,21 @@ def pred_vec(model, wavPath, vecPath, device):
     audln = audio.shape[0]
     vec_a = []
     idx_s = 0
-    while (idx_s + 20 * 16000 < audln):
-        feats = audio[idx_s:idx_s + 20 * 16000]
+    while idx_s + 20 * 16000 < audln:
+        feats = audio[idx_s : idx_s + 20 * 16000]
         feats = torch.from_numpy(feats).to(device)
         feats = feats[None, None, :]
-        if not (device == "cpu"):
+        if device != "cpu":
             feats = feats.half()
         with torch.no_grad():
             vec = model.units(feats).squeeze().data.cpu().float().numpy()
             vec_a.extend(vec)
         idx_s = idx_s + 20 * 16000
-    if (idx_s < audln):
+    if idx_s < audln:
         feats = audio[idx_s:audln]
         feats = torch.from_numpy(feats).to(device)
         feats = feats[None, None, :]
-        if not (device == "cpu"):
+        if device != "cpu":
             feats = feats.half()
         with torch.no_grad():
             vec = model.units(feats).squeeze().data.cpu().float().numpy()
@@ -62,6 +65,7 @@ if __name__ == "__main__":
     vecPath = args.vec
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    hubert = load_model(os.path.join(
-        "hubert_pretrain", "hubert-soft-0d54a1f4.pt"), device)
+    hubert = load_model(
+        os.path.join("hubert_pretrain", "hubert-soft-0d54a1f4.pt"), device
+    )
     pred_vec(hubert, wavPath, vecPath, device)
