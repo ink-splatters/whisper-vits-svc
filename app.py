@@ -166,9 +166,7 @@ class WebUI:
                             interactive=True,
                         )
                         with gr.Column():
-                            self.bt_refersh2 = gr.Button(
-                                value=i18n("刷新模型和音色")
-                            )
+                            self.bt_refersh2 = gr.Button(value=i18n("刷新模型和音色"))
 
                             self.bt_out_model = gr.Button(
                                 value=i18n("导出模型"), variant="primary"

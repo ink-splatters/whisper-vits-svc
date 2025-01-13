@@ -33,6 +33,7 @@ torchaudio = { version = "*", index = "https://download.pytorch.org/whl/nightly/
 
 [feature.test.dependencies]
 pytest = "*"
+pytest-mock = ">=3.14.0"
 
 [feature.lint.dependencies]
 ruff = "*"

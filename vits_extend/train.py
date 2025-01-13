@@ -143,9 +143,7 @@ def train(rank, args, chkpt_path, hp, hp_str):
         step = checkpoint["step"]
 
         if rank == 0 and hp_str != checkpoint["hp_str"]:
-            logger.warning(
-                "New hparams is different from checkpoint. Will use new."
-            )
+            logger.warning("New hparams is different from checkpoint. Will use new.")
     else:
         if rank == 0:
             logger.info("Starting new training run.")
@@ -360,22 +358,25 @@ def train(rank, args, chkpt_path, hp, hp_str):
                     for f in os.listdir(path_to_models)
                     if os.path.isfile(os.path.join(path_to_models, f))
                 ]
+
                 def name_key(_f):
-                    return int(
-                                    re.compile(f"{args.name}_(\d+)\.pt").match(_f).group(1)
-                                )
+                    return int(re.compile(f"{args.name}_(\d+)\.pt").match(_f).group(1))
+
                 def time_key(_f):
                     return os.path.getmtime(os.path.join(path_to_models, _f))
+
                 sort_key = time_key if sort_by_time else name_key
+
                 def x_sorted(_x):
                     return sorted(
-                                    [
-                                        f
-                                        for f in ckpts_files
-                                        if f.startswith(_x) and not f.endswith("sovits5.0_0.pth")
-                                    ],
-                                    key=sort_key,
-                                )
+                        [
+                            f
+                            for f in ckpts_files
+                            if f.startswith(_x) and not f.endswith("sovits5.0_0.pth")
+                        ],
+                        key=sort_key,
+                    )
+
                 if n_ckpts_to_keep == 0:
                     to_del = []
                 else:
@@ -383,12 +384,13 @@ def train(rank, args, chkpt_path, hp, hp_str):
                         os.path.join(path_to_models, fn)
                         for fn in x_sorted(f"{args.name}")[:-n_ckpts_to_keep]
                     ]
+
                 def del_info(fn):
-                    return logger.info(
-                                    f"Free up space by deleting ckpt {fn}"
-                                )
+                    return logger.info(f"Free up space by deleting ckpt {fn}")
+
                 def del_routine(x):
                     return [os.remove(x), del_info(x)]
+
                 [del_routine(fn) for fn in to_del]
 
             clean_checkpoints()

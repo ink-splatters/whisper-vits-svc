@@ -49,6 +49,7 @@ def convert_pad_shape(pad_shape):
     pad_shape = [item for sublist in l for item in sublist]
     return pad_shape
 
+
 def kl_divergence(m_p, logs_p, m_q, logs_q):
     """KL(P||Q)"""
     kl = (logs_q - logs_p) - 0.5

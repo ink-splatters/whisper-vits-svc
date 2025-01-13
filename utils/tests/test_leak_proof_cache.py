@@ -4,6 +4,7 @@ import gc
 import weakref
 from utils.leakproof_cache import leakproof
 
+
 class ExampleClass:
     @leakproof
     @functools.lru_cache(maxsize=3)

@@ -1,6 +1,7 @@
 import weakref
 import functools
 
+
 def leakproof(wrapped):
     """
     A decorator that wraps around caching decorators (like @lru_cache or @cache)
@@ -15,9 +16,10 @@ def leakproof(wrapped):
     Returns
         callable: A wrapped method that uses weak references to the instance.
     """
+
     @functools.wraps(wrapped)
     def wrapper(self, *args, **kwargs):
-        if not hasattr(wrapper, 'weak_self'):
+        if not hasattr(wrapper, "weak_self"):
             # Create a weak reference to the instance
             wrapper.weak_self = weakref.ref(self)
             # Set up a finalizer to clear the cache when the instance is garbage collected

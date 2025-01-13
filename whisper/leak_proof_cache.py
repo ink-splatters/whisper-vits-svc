@@ -15,7 +15,9 @@ class leakproofcache(Generic[P, T]):
     Supports customization by allowing the choice of cache function (e.g., functools.lru_cache or functools.cache).
     """
 
-    def __init__(self, cache_func: Callable = functools.lru_cache, *cache_args, **cache_kwargs):
+    def __init__(
+        self, cache_func: Callable = functools.lru_cache, *cache_args, **cache_kwargs
+    ):
         """
         Initialize the decorator with a cache function and its arguments.
 
@@ -38,6 +40,7 @@ class leakproofcache(Generic[P, T]):
         Returns:
             Callable: The wrapped function with caching applied.
         """
+
         @functools.wraps(func)
         def wrapped_func(self, *args: P.args, **kwargs: P.kwargs) -> T:
             # Use a weak reference to the instance (self) to prevent memory leaks
